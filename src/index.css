@@ -1,0 +1,250 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Work+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 50% 97%;
+    --foreground: 0 0% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 0 79% 72%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 25 78% 92%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 25 78% 92%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 79% 72%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 25 30% 85%;
+    --input: 25 30% 85%;
+    --ring: 0 79% 72%;
+    --radius: 0.625rem;
+    
+    /* MamaCare Brand Colors */
+    --mamacare-coral: #f08080;
+    --mamacare-coral-light: #f5a3a3;
+    --mamacare-coral-dark: #d65a5a;
+    --mamacare-champagne: #fce4d4;
+    --mamacare-charcoal: #343434;
+    --mamacare-dark-grey: #424242;
+    --mamacare-cream: #fffaf5;
+    --mamacare-success: #4ade80;
+    --mamacare-warning: #fbbf24;
+    --mamacare-danger: #ef4444;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Work Sans', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cormorant Garamond', serif;
+  }
+  
+  .font-body {
+    font-family: 'Work Sans', sans-serif;
+  }
+  
+  .text-gradient {
+    background: linear-gradient(135deg, var(--mamacare-coral) 0%, var(--mamacare-coral-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .bg-gradient-mamacare {
+    background: linear-gradient(135deg, var(--mamacare-champagne) 0%, #fff 50%, var(--mamacare-champagne) 100%);
+  }
+  
+  .bg-gradient-coral {
+    background: linear-gradient(135deg, var(--mamacare-coral) 0%, var(--mamacare-coral-dark) 100%);
+  }
+  
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .glassmorphism-dark {
+    background: rgba(66, 66, 66, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+  }
+  
+  .animate-breathe {
+    animation: breathe 6s ease-in-out infinite;
+  }
+  
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+  
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+  
+  .animate-gradient-shift {
+    animation: gradient-shift 20s ease infinite;
+    background-size: 200% 200%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mamacare-champagne);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mamacare-coral);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mamacare-coral-dark);
+}
+
+/* Risk level colors */
+.risk-low {
+  @apply bg-green-100 text-green-800 border-green-300;
+}
+
+.risk-medium {
+  @apply bg-amber-100 text-amber-800 border-amber-300;
+}
+
+.risk-high {
+  @apply bg-red-100 text-red-800 border-red-300;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Magnetic button effect base */
+.magnetic-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(240, 128, 128, 0.2);
+}
+
+/* Input focus styles */
+.input-focus {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-focus:focus {
+  border-color: var(--mamacare-coral);
+  box-shadow: 0 0 0 3px rgba(240, 128, 128, 0.2);
+}
+
+/* Language selector */
+.lang-option {
+  @apply px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer;
+}
+
+.lang-option:hover {
+  @apply bg-[var(--mamacare-coral)] text-white;
+}
+
+.lang-option.active {
+  @apply bg-[var(--mamacare-coral)] text-white;
+}
