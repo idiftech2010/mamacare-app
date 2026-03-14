@@ -208,7 +208,7 @@ export default function Home() {
                 </Button>
               </Link>
               <Link to="/education">
-                <Button variant="outline" className="border-2 border-black text-black hover:bg-pink hover:text-mamacare-charcoal px-8 py-6 text-lg rounded-full transition-all">
+                <Button variant="outline" className="border-2 border-mamacare-coral text-mamacare-coral hover:bg-mamacare-coral hover:text-mamacare-charcoal px-8 py-6 text-lg rounded-full transition-all">
                   {t('learnMore')}
                 </Button>
               </Link>
