@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
   Heart, Menu, X, Globe, User, LogOut, ChevronDown,
-  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity
+  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity, MessageCircle, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage, languages } from '@/contexts/LanguageContext';
@@ -39,10 +39,12 @@ export default function Layout() {
 
   const navLinks = [
     { path: '/', label: t('home'), icon: LayoutDashboard },
+    { path: '/chat', label: 'AI Chat', icon: MessageCircle },
     { path: '/assessment', label: t('assessment'), icon: Activity },
     { path: '/telemedicine', label: t('telemedicine'), icon: Stethoscope },
     { path: '/wearables', label: t('devices'), icon: Watch },
     { path: '/education', label: t('education'), icon: BookOpen },
+    { path: '/downloads', label: 'Download', icon: Download },
   ];
 
   return (

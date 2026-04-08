@@ -111,13 +111,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithGoogle = useCallback(async (): Promise<boolean> => {
-    // For demo purposes, show a message about Google OAuth setup
-    toast.info('Google OAuth requires configuration. Please use email login for demo.', {
-      description: 'To enable Google Sign-in, you need to set up OAuth credentials in Google Cloud Console.',
-      duration: 5000,
-    });
-    return false;
+  const loginWithGoogle = useCallback(async (credentialResponse: any): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      // Decode the JWT token from Google (this is the credential)
+      const base64Url = credentialResponse.credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const decodedToken = JSON.parse(jsonPayload);
+
+      // Send to backend for authentication
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: decodedToken.email,
+          name: decodedToken.name,
+          googleId: decodedToken.sub,
+          credential: credentialResponse.credential,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUser(data.user);
+        localStorage.setItem('mamacare-token', data.token);
+        localStorage.setItem('mamacare-user', JSON.stringify(data.user));
+        toast.success('Google login successful!');
+        return true;
+      } else {
+        toast.error(data.error || 'Google login failed');
+        return false;
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      toast.error('Failed to process Google login. Please try again.');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const loginWithPhone = useCallback(async (phone: string, otp?: string): Promise<boolean> => {

@@ -1,7 +1,9 @@
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Activity, Stethoscope, Calendar,
-  Plus, Edit2, Trash2, X, Loader2, RefreshCw
+  Plus, Edit2, Trash2, X, Loader2, RefreshCw, Download, FileJson, Table2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +67,7 @@ interface Stats {
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const { getToken, isSuperadmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic'>('dashboard');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [records, setRecords] = useState<RecordData[]>([]);
@@ -73,6 +75,12 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDoctorForm, setShowDoctorForm] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  
+  // Clinic access states
+  const [clinicSearchQuery, setClinicSearchQuery] = useState('');
+  const [clinicSearchResults, setClinicSearchResults] = useState<UserData[]>([]);
+  const [clinicIsSearching, setClinicIsSearching] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<UserData | null>(null);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -218,6 +226,131 @@ export default function AdminDashboard() {
     }
   };
 
+  // Export functions
+  const exportToCSV = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`Data exported as CSV: ${filename}`);
+  };
+
+  const exportToXLSX = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success(`Data exported as XLSX: ${filename}`);
+  };
+
+  const exportToJSON = (data: any[], filename: string) => {
+    if (data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    saveAs(blob, `${filename}_${new Date().toISOString().split('T')[0]}.json`);
+    toast.success(`Data exported as JSON: ${filename}`);
+  };
+
+  const exportUsers = () => {
+    const usersData = users.map(u => ({
+      'ID': u.id,
+      'Name': u.name,
+      'Email': u.email,
+      'Phone': u.phone || 'N/A',
+      'Role': u.role,
+      'Joined': new Date(u.createdAt).toLocaleDateString(),
+      'Last Login': u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
+    }));
+    exportToXLSX(usersData, 'users');
+  };
+
+  const exportRecords = () => {
+    const recordsData = records.map(r => ({
+      'ID': r.id,
+      'User Name': r.user?.name || 'Unknown',
+      'User Email': r.user?.email || 'Unknown',
+      'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
+      'Risk Level': r.result.level,
+      'Risk Score': r.result.score,
+    }));
+    exportToXLSX(recordsData, 'assessment_records');
+  };
+
+  const exportDoctors = () => {
+    const doctorsData = doctors.map(d => ({
+      'ID': d.id,
+      'Name': d.name,
+      'Specialty': d.specialty,
+      'Email': d.email,
+      'Phone': d.phone,
+      'Education': d.education,
+      'Experience (years)': d.experience,
+      'Languages': d.languages.join(', '),
+      'Available': d.available ? 'Yes' : 'No',
+      'Rating': d.rating,
+      'Reviews': d.reviews,
+    }));
+    exportToXLSX(doctorsData, 'doctors');
+  };
+
+  // Clinic Access Functions
+  const handleClinicSearch = async () => {
+    if (!clinicSearchQuery.trim()) {
+      toast.error('Please enter a search query (email, phone, or ID)');
+      return;
+    }
+
+    setClinicIsSearching(true);
+    const token = getToken();
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/admin/search-patients?query=${encodeURIComponent(clinicSearchQuery)}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const results = await response.json();
+        setClinicSearchResults(results);
+        setSelectedPatient(null);
+        if (results.length === 0) {
+          toast.info('No patients found matching your search');
+        } else {
+          toast.success(`Found ${results.length} patient(s)`);
+        }
+      } else {
+        toast.error('Failed to search patients');
+        setClinicSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      toast.error('Network error while searching');
+      setClinicSearchResults([]);
+    } finally {
+      setClinicIsSearching(false);
+    }
+  };
+
+  const getPatientRecords = (patientId: string) => {
+    return records.filter(r => r.userId === patientId);
+  };
+
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Refresh Button */}
@@ -344,8 +477,40 @@ export default function AdminDashboard() {
 
   const renderUsers = () => (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{t('users')} ({users.length})</CardTitle>
+        <div className="flex gap-2">
+          <div className="group relative">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Download className="w-4 h-4" /> Export
+            </Button>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button
+                onClick={exportUsers}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
+              >
+                <Table2 className="w-4 h-4" /> Export as XLSX
+              </button>
+              <button
+                onClick={() => {
+                  const usersData = users.map(u => ({
+                    'ID': u.id,
+                    'Name': u.name,
+                    'Email': u.email,
+                    'Phone': u.phone || 'N/A',
+                    'Role': u.role,
+                    'Joined': new Date(u.createdAt).toLocaleDateString(),
+                    'Last Login': u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
+                  }));
+                  exportToCSV(usersData, 'users');
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
+              >
+                <FileJson className="w-4 h-4" /> Export as CSV
+              </button>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -407,8 +572,39 @@ export default function AdminDashboard() {
 
   const renderRecords = () => (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{t('records')} ({records.length})</CardTitle>
+        <div className="flex gap-2">
+          <div className="group relative">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Download className="w-4 h-4" /> Export
+            </Button>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button
+                onClick={exportRecords}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
+              >
+                <Table2 className="w-4 h-4" /> Export as XLSX
+              </button>
+              <button
+                onClick={() => {
+                  const recordsData = records.map(r => ({
+                    'ID': r.id,
+                    'User Name': r.user?.name || 'Unknown',
+                    'User Email': r.user?.email || 'Unknown',
+                    'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
+                    'Risk Level': r.result.level,
+                    'Risk Score': r.result.score,
+                  }));
+                  exportToCSV(recordsData, 'assessment_records');
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
+              >
+                <FileJson className="w-4 h-4" /> Export as CSV
+              </button>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -442,12 +638,48 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl font-bold">{t('doctors')}</h2>
-        <Button
-          onClick={() => { setEditingDoctor(null); setShowDoctorForm(true); }}
-          className="bg-mamacare-coral hover:bg-mamacare-coral-dark"
-        >
-          <Plus className="w-4 h-4 mr-2" /> {t('addDoctor')}
-        </Button>
+        <div className="flex gap-2">
+          <div className="group relative">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Download className="w-4 h-4" /> Export
+            </Button>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
+              <button
+                onClick={exportDoctors}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
+              >
+                <Table2 className="w-4 h-4" /> Export as XLSX
+              </button>
+              <button
+                onClick={() => {
+                  const doctorsData = doctors.map(d => ({
+                    'ID': d.id,
+                    'Name': d.name,
+                    'Specialty': d.specialty,
+                    'Email': d.email,
+                    'Phone': d.phone,
+                    'Education': d.education,
+                    'Experience (years)': d.experience,
+                    'Languages': d.languages.join(', '),
+                    'Available': d.available ? 'Yes' : 'No',
+                    'Rating': d.rating,
+                    'Reviews': d.reviews,
+                  }));
+                  exportToCSV(doctorsData, 'doctors');
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
+              >
+                <FileJson className="w-4 h-4" /> Export as CSV
+              </button>
+            </div>
+          </div>
+          <Button
+            onClick={() => { setEditingDoctor(null); setShowDoctorForm(true); }}
+            className="bg-mamacare-coral hover:bg-mamacare-coral-dark"
+          >
+            <Plus className="w-4 h-4 mr-2" /> {t('addDoctor')}
+          </Button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -570,7 +802,193 @@ export default function AdminDashboard() {
     </div>
   );
 
-  if (isLoading) {
+  const renderClinicAccess = () => (
+    <div className="space-y-6">
+      {/* Search Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search Patient Data</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Search for patient data by email, phone number, or patient ID. No registration required.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter email, phone, or patient ID..."
+              value={clinicSearchQuery}
+              onChange={(e) => setClinicSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleClinicSearch();
+                }
+              }}
+              disabled={clinicIsSearching}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleClinicSearch}
+              disabled={clinicIsSearching || !clinicSearchQuery.trim()}
+              className="bg-mamacare-coral hover:bg-mamacare-coral-dark"
+            >
+              {clinicIsSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Search Results */}
+      {clinicSearchResults.length > 0 && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Patients List */}
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Found Patients ({clinicSearchResults.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {clinicSearchResults.map((patient) => (
+                  <button
+                    key={patient.id}
+                    onClick={() => setSelectedPatient(patient)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                      selectedPatient?.id === patient.id
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-gray-50 border-gray-200 hover:border-blue-200'
+                    }`}
+                  >
+                    <p className="font-medium text-sm">{patient.name}</p>
+                    <p className="text-xs text-gray-500">{patient.email}</p>
+                    <p className="text-xs text-gray-400">{patient.phone || 'No phone'}</p>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Patient Details */}
+          {selectedPatient && (
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Patient Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Personal Info */}
+                <div>
+                  <h3 className="font-semibold mb-3 text-lg">Personal Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Name</p>
+                      <p className="font-medium">{selectedPatient.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="font-medium">{selectedPatient.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Phone</p>
+                      <p className="font-medium">{selectedPatient.phone || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Patient ID</p>
+                      <p className="font-medium text-xs">{selectedPatient.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Registration Date</p>
+                      <p className="font-medium">{new Date(selectedPatient.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Last Login</p>
+                      <p className="font-medium">
+                        {selectedPatient.lastLogin 
+                          ? new Date(selectedPatient.lastLogin).toLocaleDateString()
+                          : 'Never'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assessment History */}
+                {getPatientRecords(selectedPatient.id).length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3 text-lg">Assessment History</h3>
+                    <div className="space-y-2">
+                      {getPatientRecords(selectedPatient.id).map((record) => (
+                        <div key={record.id} className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-sm">
+                                {new Date(record.timestamp).toLocaleDateString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Score: {record.result.score}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              record.result.level === 'low' ? 'bg-green-100 text-green-700' :
+                              record.result.level === 'medium' ? 'bg-amber-100 text-amber-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {record.result.level.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {getPatientRecords(selectedPatient.id).length === 0 && (
+                  <div className="text-center py-6">
+                    <p className="text-gray-500">No assessment records found for this patient</p>
+                  </div>
+                )}
+
+                {/* Export Patient Data */}
+                <div className="pt-4 border-t">
+                  <Button
+                    onClick={() => {
+                      const patientData = [{
+                        'Name': selectedPatient.name,
+                        'Email': selectedPatient.email,
+                        'Phone': selectedPatient.phone || 'N/A',
+                        'Patient ID': selectedPatient.id,
+                        'Registered': new Date(selectedPatient.createdAt).toLocaleDateString(),
+                        'Last Login': selectedPatient.lastLogin ? new Date(selectedPatient.lastLogin).toLocaleDateString() : 'Never',
+                        'Assessments': getPatientRecords(selectedPatient.id).length,
+                      }];
+                      exportToCSV(patientData, `patient_${selectedPatient.id}`);
+                    }}
+                    className="w-full bg-mamacare-coral hover:bg-mamacare-coral-dark text-white flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Patient Data (CSV)
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {clinicSearchResults.length === 0 && clinicSearchQuery && !clinicIsSearching && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <p className="text-gray-500">No patients found. Try searching with a different query.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!clinicSearchQuery && clinicSearchResults.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Stethoscope className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">Enter a search query to find patient data</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
     return (
       <div className="min-h-screen py-24 bg-mamacare-cream flex items-center justify-center">
         <div className="text-center">
@@ -593,6 +1011,7 @@ export default function AdminDashboard() {
             { id: 'users', label: t('users'), icon: Users },
             { id: 'records', label: t('records'), icon: Activity },
             { id: 'doctors', label: t('doctors'), icon: Stethoscope },
+            { id: 'clinic', label: 'Clinic Access', icon: Calendar },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -613,6 +1032,7 @@ export default function AdminDashboard() {
         {activeTab === 'users' && renderUsers()}
         {activeTab === 'records' && renderRecords()}
         {activeTab === 'doctors' && renderDoctors()}
+        {activeTab === 'clinic' && renderClinicAccess()}
       </div>
     </div>
   );

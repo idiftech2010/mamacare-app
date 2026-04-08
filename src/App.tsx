@@ -3,6 +3,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
+import Chat from './pages/Chat';
+import Downloads from './pages/Downloads';
 import Telemedicine from './pages/Telemedicine';
 import Wearables from './pages/Wearables';
 import EducationHub from './pages/EducationHub';
@@ -25,6 +27,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="downloads" element={<Downloads />} />
             <Route path="telemedicine" element={<Telemedicine />} />
             <Route path="wearables" element={<Wearables />} />
             <Route path="education" element={<EducationHub />} />

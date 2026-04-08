@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 import { 
   Mail, Lock, Phone, Chrome, Eye, EyeOff, ArrowRight
 } from 'lucide-react';
@@ -40,14 +41,22 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    const success = await loginWithGoogle();
-    setIsLoading(false);
-    if (success) {
-      navigate('/');
-    }
-  };
+  const handleGoogleLoginClick = useGoogleLogin({
+    onSuccess: async (credentialResponse) => {
+      setIsLoading(true);
+      try {
+        const success = await loginWithGoogle(credentialResponse);
+        if (success) {
+          navigate('/');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      alert('Google login failed. Please try again.');
+    },
+  });
 
   return (
     <div className="min-h-screen py-24 bg-gradient-to-br from-mamacare-champagne via-white to-mamacare-champagne">
@@ -173,7 +182,7 @@ export default function Login() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleGoogleLogin}
+              onClick={() => handleGoogleLoginClick()}
               disabled={isLoading}
               className="w-full py-6"
             >
