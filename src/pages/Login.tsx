@@ -42,7 +42,7 @@ export default function Login() {
   };
 
   const handleGoogleLoginClick = useGoogleLogin({
-    onSuccess: async (credentialResponse) => {
+    onSuccess: async (credentialResponse: any) => {
       setIsLoading(true);
       try {
         const success = await loginWithGoogle(credentialResponse);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 import { 
   Mail, Lock, Phone, User, Chrome, Eye, EyeOff, ArrowRight
 } from 'lucide-react';
@@ -47,14 +48,23 @@ export default function Register() {
     }
   };
 
-  const handleGoogleRegister = async () => {
-    setIsLoading(true);
-    const success = await loginWithGoogle();
-    setIsLoading(false);
-    if (success) {
-      navigate('/');
-    }
-  };
+  const handleGoogleRegisterClick = useGoogleLogin({
+    onSuccess: async (credentialResponse: any) => {
+      setIsLoading(true);
+      try {
+        const success = await loginWithGoogle(credentialResponse);
+        if (success) {
+          navigate('/');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      setIsLoading(false);
+      alert('Google registration failed. Please try again.');
+    },
+  });
 
   return (
     <div className="min-h-screen py-24 bg-gradient-to-br from-mamacare-champagne via-white to-mamacare-champagne">
@@ -182,7 +192,7 @@ export default function Register() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleGoogleRegister}
+              onClick={() => handleGoogleRegisterClick()}
               disabled={isLoading}
               className="w-full py-6"
             >

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="MamaCare logo">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f8e3f" />
+      <stop offset="100%" stop-color="#17ad46" />
+    </linearGradient>
+  </defs>
+  <path d="M128 220 L46 140 C28 118 28 82 54 58 C78 36 110 44 128 76 C146 44 178 36 202 58 C228 82 228 118 210 140 Z" fill="url(#grad)" />
+  <circle cx="94" cy="84" r="18" fill="#fff" />
+  <path d="M94 94 C84 118 78 138 84 154 C90 170 110 182 120 178 C118 166 120 150 126 136 C132 122 146 118 150 106 C154 94 148 88 138 90 C128 92 116 90 110 84 Z" fill="#fff" />
+  <circle cx="148" cy="116" r="14" fill="#fff" />
+  <path d="M142 132 C136 146 134 158 140 168 C146 178 156 180 164 174 C170 168 168 156 164 146 C160 136 152 132 142 132 Z" fill="#fff" />
+</svg>

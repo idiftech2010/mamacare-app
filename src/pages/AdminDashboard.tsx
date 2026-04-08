@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Activity, Stethoscope, Calendar,
@@ -251,18 +250,6 @@ export default function AdminDashboard() {
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
     XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success(`Data exported as XLSX: ${filename}`);
-  };
-
-  const exportToJSON = (data: any[], filename: string) => {
-    if (data.length === 0) {
-      toast.error('No data to export');
-      return;
-    }
-    
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    saveAs(blob, `${filename}_${new Date().toISOString().split('T')[0]}.json`);
-    toast.success(`Data exported as JSON: ${filename}`);
   };
 
   const exportUsers = () => {
@@ -989,6 +976,8 @@ export default function AdminDashboard() {
       )}
     </div>
   );
+
+  if (isLoading) {
     return (
       <div className="min-h-screen py-24 bg-mamacare-cream flex items-center justify-center">
         <div className="text-center">

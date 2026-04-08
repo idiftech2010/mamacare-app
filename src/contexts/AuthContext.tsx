@@ -29,7 +29,7 @@ interface AuthContextType {
   isSuperadmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<boolean>;
+  loginWithGoogle: (credentialResponse: any) => Promise<boolean>;
   loginWithPhone: (phone: string, otp?: string) => Promise<boolean>;
   register: (email: string, password: string, name: string, phone?: string) => Promise<boolean>;
   logout: () => void;
