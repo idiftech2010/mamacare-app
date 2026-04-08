@@ -57,7 +57,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group">
-              <Heart className="w-8 h-8 text-mamacare-coral fill-mamacare-coral group-hover:scale-110 transition-transform" />
+              <img src="/logo.svg" alt="Mamacare logo" className="w-10 h-10" />
               <span className="font-display text-2xl font-bold text-mamacare-charcoal">Mamacare</span>
             </Link>
             
