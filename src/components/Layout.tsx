@@ -2,13 +2,14 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
   Heart, Menu, X, Globe, User, LogOut, ChevronDown,
-  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity, MessageCircle, Download
+  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity, Download, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage, languages } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import EmergencyButton from './EmergencyButton';
+import SupportChatWidget from './SupportChatWidget';
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,7 +40,6 @@ export default function Layout() {
 
   const navLinks = [
     { path: '/', label: t('home'), icon: LayoutDashboard },
-    { path: '/chat', label: 'AI Chat', icon: MessageCircle },
     { path: '/assessment', label: t('assessment'), icon: Activity },
     { path: '/telemedicine', label: t('telemedicine'), icon: Stethoscope },
     { path: '/wearables', label: t('devices'), icon: Watch },
@@ -57,8 +57,8 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group">
-              <img src="/logo.svg" alt="Mamacare logo" className="w-10 h-10" />
-              <span className="font-display text-2xl font-bold text-mamacare-charcoal">Mamacare</span>
+              <Heart className="w-10 h-10 text-mamacare-coral" />
+              <span className="font-display text-2xl font-bold text-mamacare-coral">Mamacare</span>
             </Link>
             
             {/* Desktop Navigation */}
@@ -83,6 +83,14 @@ export default function Layout() {
               {/* Emergency Button */}
               <EmergencyButton />
               
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('openMamacareChat'))}
+                className="hidden md:inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-mamacare-coral text-white text-sm font-medium hover:bg-mamacare-coral-dark transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                24/7 Chat
+              </button>
+
               {/* Language Selector */}
               <div className="relative">
                 <button
@@ -229,6 +237,8 @@ export default function Layout() {
       <main className="pt-16">
         <Outlet />
       </main>
+
+      <SupportChatWidget />
 
       {/* Footer */}
       <footer className="bg-mamacare-charcoal py-16">

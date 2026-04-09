@@ -55,6 +55,34 @@ interface RecordData {
   };
 }
 
+interface Post {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image?: string;
+  createdAt: string;
+}
+
+interface GalleryItem {
+  id: string;
+  title: string;
+  image: string;
+  caption: string;
+  createdAt: string;
+}
+
+interface WearableAdmin {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image: string;
+  specs: string;
+  available: boolean;
+  createdAt: string;
+}
+
 interface Stats {
   totalUsers: number;
   totalAssessments: number;
@@ -66,14 +94,23 @@ interface Stats {
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const { getToken, isSuperadmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic' | 'content'>('dashboard');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [records, setRecords] = useState<RecordData[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [wearables, setWearables] = useState<WearableAdmin[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDoctorForm, setShowDoctorForm] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [showGalleryForm, setShowGalleryForm] = useState(false);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [showWearableForm, setShowWearableForm] = useState(false);
+  const [editingWearable, setEditingWearable] = useState<WearableAdmin | null>(null);
   
   // Clinic access states
   const [clinicSearchQuery, setClinicSearchQuery] = useState('');
@@ -123,6 +160,33 @@ export default function AdminDashboard() {
       if (recordsRes.ok) {
         const recordsData = await recordsRes.json();
         setRecords(recordsData);
+      }
+
+      // Fetch posts
+      const postsRes = await fetch(`${API_BASE_URL}/admin/posts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (postsRes.ok) {
+        const postsData = await postsRes.json();
+        setPosts(postsData);
+      }
+
+      // Fetch gallery
+      const galleryRes = await fetch(`${API_BASE_URL}/admin/gallery`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (galleryRes.ok) {
+        const galleryData = await galleryRes.json();
+        setGallery(galleryData);
+      }
+
+      // Fetch wearables
+      const wearablesRes = await fetch(`${API_BASE_URL}/admin/wearables`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (wearablesRes.ok) {
+        const wearablesData = await wearablesRes.json();
+        setWearables(wearablesData);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -219,6 +283,187 @@ export default function AdminDashboard() {
         setEditingDoctor(null);
       } else {
         toast.error('Failed to save doctor');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleSavePost = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const token = getToken();
+    const formData = new FormData(e.currentTarget);
+    const postData = {
+      id: editingPost?.id,
+      title: formData.get('title') as string,
+      excerpt: formData.get('excerpt') as string,
+      content: formData.get('content') as string,
+      image: formData.get('image') as string,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(postData),
+      });
+
+      if (response.ok) {
+        const savedPost = await response.json();
+        if (editingPost) {
+          setPosts(posts.map((p) => (p.id === editingPost.id ? savedPost : p)));
+          toast.success('Post updated successfully');
+        } else {
+          setPosts([...posts, savedPost]);
+          toast.success('Post added successfully');
+        }
+        setShowPostForm(false);
+        setEditingPost(null);
+      } else {
+        toast.error('Failed to save post');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Delete this post?')) return;
+    const token = getToken();
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setPosts(posts.filter((post) => post.id !== postId));
+        toast.success('Post deleted');
+      } else {
+        toast.error('Failed to delete post');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleSaveGalleryItem = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const token = getToken();
+    const formData = new FormData(e.currentTarget);
+    const galleryItem = {
+      id: editingGalleryItem?.id,
+      title: formData.get('title') as string,
+      image: formData.get('image') as string,
+      caption: formData.get('caption') as string,
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/gallery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(galleryItem),
+      });
+
+      if (response.ok) {
+        const savedItem = await response.json();
+        if (editingGalleryItem) {
+          setGallery(gallery.map((item) => (item.id === editingGalleryItem.id ? savedItem : item)));
+          toast.success('Gallery item updated');
+        } else {
+          setGallery([...gallery, savedItem]);
+          toast.success('Gallery item added');
+        }
+        setShowGalleryForm(false);
+        setEditingGalleryItem(null);
+      } else {
+        toast.error('Failed to save gallery item');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleDeleteGalleryItem = async (itemId: string) => {
+    if (!confirm('Delete this gallery item?')) return;
+    const token = getToken();
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/gallery/${itemId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setGallery(gallery.filter((item) => item.id !== itemId));
+        toast.success('Gallery item deleted');
+      } else {
+        toast.error('Failed to delete gallery item');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleSaveWearable = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const token = getToken();
+    const formData = new FormData(e.currentTarget);
+    const wearableData = {
+      id: editingWearable?.id,
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      price: Number(formData.get('price')) || 0,
+      image: formData.get('image') as string,
+      specs: formData.get('specs') as string,
+      available: formData.get('available') === 'on',
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/wearables`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(wearableData),
+      });
+
+      if (response.ok) {
+        const savedDevice = await response.json();
+        if (editingWearable) {
+          setWearables(wearables.map((item) => (item.id === editingWearable.id ? savedDevice : item)));
+          toast.success('Wearable updated');
+        } else {
+          setWearables([...wearables, savedDevice]);
+          toast.success('Wearable added');
+        }
+        setShowWearableForm(false);
+        setEditingWearable(null);
+      } else {
+        toast.error('Failed to save wearable');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleDeleteWearable = async (wearableId: string) => {
+    if (!confirm('Delete this wearable device?')) return;
+    const token = getToken();
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/wearables/${wearableId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setWearables(wearables.filter((item) => item.id !== wearableId));
+        toast.success('Wearable deleted');
+      } else {
+        toast.error('Failed to delete wearable');
       }
     } catch (error) {
       toast.error('Network error');
@@ -789,6 +1034,213 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const renderContentManagement = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Posts ({posts.length})</CardTitle>
+          <Button className="bg-mamacare-coral hover:bg-mamacare-coral-dark" onClick={() => { setEditingPost(null); setShowPostForm(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Add Post
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {posts.map((post) => (
+            <div key={post.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-semibold">{post.title}</p>
+                <p className="text-sm text-gray-500">{post.excerpt}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditingPost(post); setShowPostForm(true); }}>
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeletePost(post.id)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+          {posts.length === 0 && <p className="text-gray-500 text-center py-6">No posts yet. Use the button above to add content.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Gallery ({gallery.length})</CardTitle>
+          <Button className="bg-mamacare-coral hover:bg-mamacare-coral-dark" onClick={() => { setEditingGalleryItem(null); setShowGalleryForm(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Add Image
+          </Button>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {gallery.map((item) => (
+            <div key={item.id} className="rounded-2xl overflow-hidden border border-gray-200">
+              <img src={item.image} alt={item.title} className="w-full h-48 object-cover" />
+              <div className="p-4">
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-sm text-gray-500">{item.caption}</p>
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setEditingGalleryItem(item); setShowGalleryForm(true); }}>
+                    Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteGalleryItem(item.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {gallery.length === 0 && <p className="text-gray-500 col-span-full text-center py-6">No gallery items yet.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Wearable Devices ({wearables.length})</CardTitle>
+          <Button className="bg-mamacare-coral hover:bg-mamacare-coral-dark" onClick={() => { setEditingWearable(null); setShowWearableForm(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Add Device
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {wearables.map((device) => (
+            <div key={device.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-semibold">{device.name}</p>
+                <p className="text-sm text-gray-500">{device.description}</p>
+                <p className="text-sm text-gray-500">Price: ₦{device.price.toLocaleString()}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditingWearable(device); setShowWearableForm(true); }}>
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteWearable(device.id)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+          {wearables.length === 0 && <p className="text-gray-500 text-center py-6">No wearable devices configured yet.</p>}
+        </CardContent>
+      </Card>
+
+      {showPostForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display text-2xl font-bold">{editingPost ? 'Edit Post' : 'Add Post'}</h3>
+              <button onClick={() => { setShowPostForm(false); setEditingPost(null); }}><X className="w-6 h-6" /></button>
+            </div>
+            <form onSubmit={handleSavePost} className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input name="title" defaultValue={editingPost?.title} required />
+              </div>
+              <div>
+                <Label>Excerpt</Label>
+                <Input name="excerpt" defaultValue={editingPost?.excerpt} required />
+              </div>
+              <div>
+                <Label>Image URL</Label>
+                <Input name="image" defaultValue={editingPost?.image} />
+              </div>
+              <div>
+                <Label>Content</Label>
+                <textarea name="content" defaultValue={editingPost?.content} className="w-full px-3 py-2 border rounded-lg" rows={6} required />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowPostForm(false); setEditingPost(null); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 bg-mamacare-coral hover:bg-mamacare-coral-dark text-white">
+                  Save Post
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showGalleryForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display text-2xl font-bold">{editingGalleryItem ? 'Edit Gallery Item' : 'Add Gallery Item'}</h3>
+              <button onClick={() => { setShowGalleryForm(false); setEditingGalleryItem(null); }}><X className="w-6 h-6" /></button>
+            </div>
+            <form onSubmit={handleSaveGalleryItem} className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input name="title" defaultValue={editingGalleryItem?.title} required />
+              </div>
+              <div>
+                <Label>Image URL</Label>
+                <Input name="image" defaultValue={editingGalleryItem?.image} required />
+              </div>
+              <div>
+                <Label>Caption</Label>
+                <textarea name="caption" defaultValue={editingGalleryItem?.caption} className="w-full px-3 py-2 border rounded-lg" rows={4} />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowGalleryForm(false); setEditingGalleryItem(null); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 bg-mamacare-coral hover:bg-mamacare-coral-dark text-white">
+                  Save Image
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showWearableForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display text-2xl font-bold">{editingWearable ? 'Edit Wearable' : 'Add Wearable'}</h3>
+              <button onClick={() => { setShowWearableForm(false); setEditingWearable(null); }}><X className="w-6 h-6" /></button>
+            </div>
+            <form onSubmit={handleSaveWearable} className="space-y-4">
+              <div>
+                <Label>Name</Label>
+                <Input name="name" defaultValue={editingWearable?.name} required />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input name="description" defaultValue={editingWearable?.description} required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Price</Label>
+                  <Input name="price" type="number" defaultValue={editingWearable?.price ?? 0} required />
+                </div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input name="image" defaultValue={editingWearable?.image} />
+                </div>
+              </div>
+              <div>
+                <Label>Specs</Label>
+                <Input name="specs" defaultValue={editingWearable?.specs} />
+              </div>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="available" defaultChecked={editingWearable?.available ?? true} />
+                <span>Available for sale</span>
+              </label>
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowWearableForm(false); setEditingWearable(null); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 bg-mamacare-coral hover:bg-mamacare-coral-dark text-white">
+                  Save Wearable
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const renderClinicAccess = () => (
     <div className="space-y-6">
       {/* Search Section */}
@@ -1000,6 +1452,7 @@ export default function AdminDashboard() {
             { id: 'users', label: t('users'), icon: Users },
             { id: 'records', label: t('records'), icon: Activity },
             { id: 'doctors', label: t('doctors'), icon: Stethoscope },
+            { id: 'content', label: t('content'), icon: BookOpen },
             { id: 'clinic', label: 'Clinic Access', icon: Calendar },
           ].map((tab) => (
             <button
@@ -1021,6 +1474,7 @@ export default function AdminDashboard() {
         {activeTab === 'users' && renderUsers()}
         {activeTab === 'records' && renderRecords()}
         {activeTab === 'doctors' && renderDoctors()}
+        {activeTab === 'content' && renderContentManagement()}
         {activeTab === 'clinic' && renderClinicAccess()}
       </div>
     </div>

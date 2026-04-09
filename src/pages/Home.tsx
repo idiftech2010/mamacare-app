@@ -214,6 +214,21 @@ export default function Home() {
               </Link>
             </div>
 
+            <div className="mt-10 max-w-2xl rounded-3xl border border-mamacare-champagne bg-white/90 p-6 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-mamacare-charcoal">Need fast help?</h2>
+                  <p className="text-sm text-gray-600">Open the MamaCare chat widget for 24/7 support, AI guidance, and pregnancy advice.</p>
+                </div>
+                <Button
+                  className="bg-mamacare-coral hover:bg-mamacare-coral-dark text-white"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openMamacareChat'))}
+                >
+                  Chat with Support
+                </Button>
+              </div>
+            </div>
+
             {/* Stats */}
             <div className="flex flex-wrap gap-8 mt-12">
               <div className="text-center">
