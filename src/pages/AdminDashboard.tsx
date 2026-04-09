@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Activity, Stethoscope, Calendar,
-  Plus, Edit2, Trash2, X, Loader2, RefreshCw, Download, FileJson, Table2
+  Plus, Edit2, Trash2, X, Loader2, RefreshCw, Download, FileJson, Table2, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

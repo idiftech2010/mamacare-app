@@ -3,8 +3,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
-import Downloads from './pages/Downloads';
-import Telemedicine from './pages/Telemedicine';
 import Wearables from './pages/Wearables';
 import EducationHub from './pages/EducationHub';
 import RiskAssessment from './pages/RiskAssessment';
