@@ -51,9 +51,23 @@ interface RecordData {
   userId: string;
   user?: UserData;
   timestamp: string;
+  vitals?: {
+    age?: number;
+    systolicBP?: number;
+    diastolicBP?: number;
+    bloodSugar?: number;
+    bodyTemp?: number;
+    heartRate?: number;
+  };
+  pregnancyWeek?: number;
+  symptoms?: string[];
+  notes?: string;
   result: {
     level: 'low' | 'medium' | 'high';
     score: number;
+    confidence?: number;
+    factors?: string[];
+    recommendations?: string[];
   };
 }
 
@@ -512,14 +526,29 @@ export default function AdminDashboard() {
     exportToXLSX(usersData, 'users');
   };
 
+  const getRiskClass = (level: string) => {
+    if (level === 'low') return 1;
+    if (level === 'medium') return 2;
+    return 3;
+  };
+
   const exportRecords = () => {
     const recordsData = records.map(r => ({
       'ID': r.id,
       'User Name': r.user?.name || 'Unknown',
       'User Email': r.user?.email || 'Unknown',
       'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
+      'Age': r.vitals?.age || '',
+      'Systolic BP': r.vitals?.systolicBP || '',
+      'Diastolic BP': r.vitals?.diastolicBP || '',
+      'Blood Sugar': r.vitals?.bloodSugar || '',
+      'Body Temperature': r.vitals?.bodyTemp || '',
+      'Heart Rate': r.vitals?.heartRate || '',
+      'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
+      'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
       'Risk Level': r.result.level,
       'Risk Score': r.result.score,
+      'Class': getRiskClass(r.result.level),
     }));
     exportToXLSX(recordsData, 'assessment_records');
   };
@@ -865,8 +894,17 @@ export default function AdminDashboard() {
                     'User Name': r.user?.name || 'Unknown',
                     'User Email': r.user?.email || 'Unknown',
                     'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
+                    'Age': r.vitals?.age || '',
+                    'Systolic BP': r.vitals?.systolicBP || '',
+                    'Diastolic BP': r.vitals?.diastolicBP || '',
+                    'Blood Sugar': r.vitals?.bloodSugar || '',
+                    'Body Temperature': r.vitals?.bodyTemp || '',
+                    'Heart Rate': r.vitals?.heartRate || '',
+                    'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
+                    'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
                     'Risk Level': r.result.level,
                     'Risk Score': r.result.score,
+                    'Class': getRiskClass(r.result.level),
                   }));
                   exportToCSV(recordsData, 'assessment_records');
                 }}

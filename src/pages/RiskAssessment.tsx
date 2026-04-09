@@ -202,7 +202,13 @@ export default function RiskAssessment() {
     }
   };
 
+  const getHealthScore = (riskScore: number) => {
+    const score = 100 - riskScore;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  };
+
   const latestAssessment = pastAssessments[0] || riskResult || null;
+  const latestHealthScore = latestAssessment ? getHealthScore(latestAssessment.result.score) : null;
   const pregnancyWeekValue = latestAssessment?.pregnancyWeek;
   const pregnancyProgress = pregnancyWeekValue
     ? Math.min(100, Math.max(0, (pregnancyWeekValue / 40) * 100))
@@ -485,7 +491,7 @@ export default function RiskAssessment() {
                     <div className="rounded-3xl bg-slate-50 p-5 shadow-sm">
                       <p className="text-sm text-gray-500">Latest Health Check</p>
                       <p className="mt-3 text-2xl font-semibold text-gray-900">
-                        {latestAssessment ? `${latestAssessment.result.score} pts` : '--'}
+                        {latestAssessment ? `${latestHealthScore} pts` : '--'}
                       </p>
                       <span className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                         latestAssessment?.result.level === 'low' ? 'bg-emerald-100 text-emerald-800' :
@@ -499,9 +505,9 @@ export default function RiskAssessment() {
                     <div className="rounded-3xl bg-slate-50 p-5 shadow-sm">
                       <p className="text-sm text-gray-500">Health Score</p>
                       <p className="mt-3 text-2xl font-semibold text-gray-900">
-                        {latestAssessment ? `${Math.round(latestAssessment.result.score)} / 100` : '--'}
+                        {latestAssessment ? `${latestHealthScore} / 100` : '--'}
                       </p>
-                      <p className="mt-3 text-sm text-gray-500">Based on your most recent assessment.</p>
+                      <p className="mt-3 text-sm text-gray-500">Higher score means lower risk and healthier vitals.</p>
                     </div>
                     <div className="rounded-3xl bg-slate-50 p-5 shadow-sm">
                       <p className="text-sm text-gray-500">Pregnancy Week</p>
