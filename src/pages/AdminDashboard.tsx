@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartLegend } from '@/components/ui/chart';
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -673,6 +675,44 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('riskDistributionChart') || 'Risk Distribution Chart'}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats ? (
+            <ChartContainer
+              config={{
+                low: { label: t('lowRisk') || 'Low risk', color: '#22c55e' },
+                medium: { label: t('mediumRisk') || 'Medium risk', color: '#f59e0b' },
+                high: { label: t('highRisk') || 'High risk', color: '#ef4444' },
+              }}
+              className="h-72"
+            >
+              <BarChart
+                data={[
+                  { name: t('lowRisk') || 'Low', low: stats.riskDistribution.low, medium: 0, high: 0 },
+                  { name: t('mediumRisk') || 'Medium', low: 0, medium: stats.riskDistribution.medium, high: 0 },
+                  { name: t('highRisk') || 'High', low: 0, medium: 0, high: stats.riskDistribution.high },
+                ]}
+                margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
+                <ChartTooltip />
+                <ChartLegend verticalAlign="top" />
+                <Bar dataKey="low" name={t('lowRisk') || 'Low'} fill="var(--color-low)" />
+                <Bar dataKey="medium" name={t('mediumRisk') || 'Medium'} fill="var(--color-medium)" />
+                <Bar dataKey="high" name={t('highRisk') || 'High'} fill="var(--color-high)" />
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <p className="text-gray-500">Loading risk distribution chart...</p>
+          )}
         </CardContent>
       </Card>
 

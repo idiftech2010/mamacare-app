@@ -197,13 +197,6 @@ export default function Login() {
               </Link>
             </p>
 
-            <div className="mt-6 p-4 bg-amber-50 rounded-lg">
-              <p className="text-sm text-amber-800">
-                <strong>Demo Credentials:</strong><br />
-                Admin: admin@mamacare.app / admin123<br />
-                User: test@example.com / any password
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

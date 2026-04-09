@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
   Heart, Menu, X, Globe, User, LogOut, ChevronDown,
-  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity, Download, MessageCircle
+  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage, languages } from '@/contexts/LanguageContext';
@@ -31,6 +31,8 @@ export default function Layout() {
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setShowLangSelector(false);
+    setShowUserMenu(false);
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -44,7 +46,6 @@ export default function Layout() {
     { path: '/telemedicine', label: t('telemedicine'), icon: Stethoscope },
     { path: '/wearables', label: t('devices'), icon: Watch },
     { path: '/education', label: t('education'), icon: BookOpen },
-    { path: '/downloads', label: 'Download', icon: Download },
   ];
 
   return (
@@ -83,18 +84,13 @@ export default function Layout() {
               {/* Emergency Button */}
               <EmergencyButton />
               
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('openMamacareChat'))}
-                className="hidden md:inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-mamacare-coral text-white text-sm font-medium hover:bg-mamacare-coral-dark transition-colors"
-              >
-                <MessageCircle className="w-4 h-4" />
-                24/7 Chat
-              </button>
-
               {/* Language Selector */}
               <div className="relative">
                 <button
-                  onClick={() => setShowLangSelector(!showLangSelector)}
+                  onClick={() => {
+                    setShowLangSelector(!showLangSelector);
+                    setShowUserMenu(false);
+                  }}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-mamacare-champagne transition-colors"
                 >
                   <Globe className="w-5 h-5 text-mamacare-coral" />
@@ -130,7 +126,10 @@ export default function Layout() {
               {isAuthenticated ? (
                 <div className="relative">
                   <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    onClick={() => {
+                      setShowUserMenu(!showUserMenu);
+                      setShowLangSelector(false);
+                    }}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-mamacare-champagne transition-colors"
                   >
                     <div className="w-8 h-8 bg-mamacare-coral rounded-full flex items-center justify-center">

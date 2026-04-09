@@ -22,8 +22,7 @@ export default function SupportChatWidget() {
                 <MessageCircle className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/80">24/7 Support</p>
-                <p className="text-base font-semibold">MamaCare Chat</p>
+                <p className="text-base font-semibold">MamaCare 24/7 AI Support</p>
               </div>
             </div>
             <button
@@ -46,7 +45,7 @@ export default function SupportChatWidget() {
         onClick={() => setIsOpen(true)}
       >
         <MessageCircle className="w-4 h-4" />
-        <span className="hidden sm:inline">24/7 Support</span>
+        <span className="hidden sm:inline">MamaCare 24/7 AI Support</span>
       </Button>
     </div>
   );

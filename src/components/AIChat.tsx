@@ -114,8 +114,8 @@ export default function AIChat() {
             <MessageCircle className="w-6 h-6 text-red-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">MamaCare AI</h1>
-            <p className="text-red-50 text-sm">Always here for you</p>
+            <h1 className="text-2xl font-bold">MamaCare 24/7 AI Support</h1>
+            <p className="text-red-50 text-sm">Ask anything about pregnancy, wellness, and maternal care.</p>
           </div>
         </div>
       </div>
