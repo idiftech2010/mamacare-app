@@ -2,19 +2,19 @@ import * as XLSX from 'xlsx';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Activity, Stethoscope, Calendar,
-  Plus, Edit2, Trash2, X, Loader2, RefreshCw, Download, FileJson, Table2, BookOpen
+  Plus, Edit2, Trash2, X, Loader2, RefreshCw, Download, FileJson, Table2, BookOpen, Camera
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { doctors as staticDoctors } from '@/data/doctors';
 import { ChartContainer, ChartTooltip, ChartLegend } from '@/components/ui/chart';
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-const API_BASE_URL = 'https://mamacare-backend-n1z7.onrender.com/api';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Doctor {
   id: string;
@@ -68,7 +68,13 @@ interface RecordData {
     confidence?: number;
     factors?: string[];
     recommendations?: string[];
+    vitalContributions?: Array<{ feature: string; label: string; contribution: number; reason: string; value: number; unit: string }>;
+    correlations?: Array<{ symptom: string; vital: string; vitalLabel: string; vitalValue: number; vitalUnit: string; relationship: string; strength: string }>;
+    deltaRisk?: number | null;
+    alertStatus?: string;
+    riskCategories?: Array<{ name: string; status: string; evidence: string[]; note?: string }>;
   };
+  riskState?: number;
 }
 
 interface Post {
@@ -109,7 +115,7 @@ interface Stats {
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
-  const { getToken, isSuperadmin } = useAuth();
+const { getToken, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic' | 'content'>('dashboard');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
@@ -127,12 +133,28 @@ export default function AdminDashboard() {
   const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
   const [showWearableForm, setShowWearableForm] = useState(false);
   const [editingWearable, setEditingWearable] = useState<WearableAdmin | null>(null);
-  
+  const [featuredTopics, setFeaturedTopics] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    body: string;
+  }[]>([]);
+  const [showTopicForm, setShowTopicForm] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    body: string;
+  } | null>(null);
+
   // Clinic access states
+  const [selectedPatient, setSelectedPatient] = useState<UserData | null>(null);
   const [clinicSearchQuery, setClinicSearchQuery] = useState('');
   const [clinicSearchResults, setClinicSearchResults] = useState<UserData[]>([]);
   const [clinicIsSearching, setClinicIsSearching] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<UserData | null>(null);
+  const [doctorImageFile, setDoctorImageFile] = useState<File | null>(null);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -144,69 +166,82 @@ export default function AdminDashboard() {
     const token = getToken();
     
     try {
-      // Fetch stats
-      const statsRes = await fetch(`${API_BASE_URL}/admin/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
+      if (!token) {
+        toast.error('Authentication token missing. Please login again.');
+        setIsLoading(false);
+        return;
       }
 
-      // Fetch doctors
-      const doctorsRes = await fetch(`${API_BASE_URL}/doctors`);
-      if (doctorsRes.ok) {
-        const doctorsData = await doctorsRes.json();
-        setDoctors(doctorsData);
+      // Parallel fetch all data
+      const [statsRes, doctorsRes, usersRes, recordsRes, postsRes, galleryRes, wearablesRes, featuredTopicsRes] = await Promise.allSettled([
+        fetch(`${API_BASE_URL}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/doctors`),
+        fetch(`${API_BASE_URL}/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/records`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/posts`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/gallery`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/wearables`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/featured-topics`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      ]);
+
+      // Process stats
+      if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+        const data = await statsRes.value.json();
+        setStats(data);
+      } else if (statsRes.status === 'fulfilled' && statsRes.value.status === 401) {
+        toast.error('Session expired. Please login again.');
+        return;
       }
 
-      // Fetch users
-      const usersRes = await fetch(`${API_BASE_URL}/admin/users`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(usersData);
+      // Process doctors
+      if (doctorsRes.status === 'fulfilled' && doctorsRes.value.ok) {
+        const data = await doctorsRes.value.json();
+        // Merge API doctors with static doctors, avoiding duplicates by id
+        const apiDoctorIds = new Set(data.map((d: Doctor) => d.id));
+        const additionalDoctors = staticDoctors.filter(d => !apiDoctorIds.has(d.id));
+        setDoctors([...data, ...additionalDoctors]);
       }
 
-      // Fetch records
-      const recordsRes = await fetch(`${API_BASE_URL}/admin/records`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (recordsRes.ok) {
-        const recordsData = await recordsRes.json();
-        setRecords(recordsData);
+      // Process users
+      if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
+        const data = await usersRes.value.json();
+        setUsers(data);
       }
 
-      // Fetch posts
-      const postsRes = await fetch(`${API_BASE_URL}/admin/posts`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (postsRes.ok) {
-        const postsData = await postsRes.json();
-        setPosts(postsData);
+      // Process records
+      if (recordsRes.status === 'fulfilled' && recordsRes.value.ok) {
+        const data = await recordsRes.value.json();
+        setRecords(data);
       }
 
-      // Fetch gallery
-      const galleryRes = await fetch(`${API_BASE_URL}/admin/gallery`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (galleryRes.ok) {
-        const galleryData = await galleryRes.json();
-        setGallery(galleryData);
+      // Process posts
+      if (postsRes.status === 'fulfilled' && postsRes.value.ok) {
+        const data = await postsRes.value.json();
+        setPosts(data);
       }
 
-      // Fetch wearables
-      const wearablesRes = await fetch(`${API_BASE_URL}/admin/wearables`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (wearablesRes.ok) {
-        const wearablesData = await wearablesRes.json();
-        setWearables(wearablesData);
+      // Process gallery
+      if (galleryRes.status === 'fulfilled' && galleryRes.value.ok) {
+        const data = await galleryRes.value.json();
+        setGallery(data);
       }
+
+      // Process wearables
+      if (wearablesRes.status === 'fulfilled' && wearablesRes.value.ok) {
+        const data = await wearablesRes.value.json();
+        setWearables(data);
+      }
+
+      // Process featured topics
+      if (featuredTopicsRes.status === 'fulfilled' && featuredTopicsRes.value.ok) {
+        const data = await featuredTopicsRes.value.json();
+        setFeaturedTopics(data);
+      }
+
+      toast.success('Dashboard data loaded');
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error('Error loading dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -262,6 +297,17 @@ export default function AdminDashboard() {
     const token = getToken();
     const formData = new FormData(e.currentTarget);
     
+    let imageUrl = formData.get('image') as string;
+    
+    // If a file was selected, convert to base64
+    if (doctorImageFile) {
+      imageUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(doctorImageFile);
+      });
+    }
+    
     const doctorData: Partial<Doctor> = {
       name: formData.get('name') as string,
       specialty: formData.get('specialty') as string,
@@ -274,6 +320,7 @@ export default function AdminDashboard() {
       languages: (formData.get('languages') as string).split(',').map(s => s.trim()),
       ethnicity: formData.get('ethnicity') as Doctor['ethnicity'],
       available: formData.get('available') === 'on',
+      image: imageUrl,
     };
 
     try {
@@ -297,6 +344,7 @@ export default function AdminDashboard() {
         }
         setShowDoctorForm(false);
         setEditingDoctor(null);
+        setDoctorImageFile(null);
       } else {
         toast.error('Failed to save doctor');
       }
@@ -481,6 +529,68 @@ export default function AdminDashboard() {
       } else {
         toast.error('Failed to delete wearable');
       }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleDeleteTopic = async (topicId: string) => {
+    if (!confirm('Delete this featured topic?')) return;
+    const token = getToken();
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/featured-topics/${topicId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        setFeaturedTopics(featuredTopics.filter((topic) => topic.id !== topicId));
+        toast.success('Featured topic deleted');
+      } else {
+        toast.error('Failed to delete topic');
+      }
+    } catch (error) {
+      toast.error('Network error');
+    }
+  };
+
+  const handleSaveTopic = async (formData: FormData) => {
+    const token = getToken();
+    const topicPayload = {
+      title: formData.get('title') as string,
+      description: formData.get('description') as string,
+      category: formData.get('category') as string,
+      body: formData.get('body') as string,
+    };
+
+    const url = editingTopic ? `${API_BASE_URL}/admin/featured-topics/${editingTopic.id}` : `${API_BASE_URL}/admin/featured-topics`;
+    const method = editingTopic ? 'PUT' : 'POST';
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(topicPayload),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        toast.error(errorBody.error || 'Failed to save topic');
+        return;
+      }
+
+      const savedTopic = await response.json();
+      setFeaturedTopics((prev) => {
+        if (editingTopic) {
+          return prev.map((topic) => (topic.id === savedTopic.id ? savedTopic : topic));
+        }
+        return [...prev, savedTopic];
+      });
+      setShowTopicForm(false);
+      setEditingTopic(null);
+      toast.success('Featured topic saved successfully');
     } catch (error) {
       toast.error('Network error');
     }
@@ -781,36 +891,33 @@ export default function AdminDashboard() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{t('users')} ({users.length})</CardTitle>
         <div className="flex gap-2">
-          <div className="group relative">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export
-            </Button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
-              <button
-                onClick={exportUsers}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
-              >
-                <Table2 className="w-4 h-4" /> Export as XLSX
-              </button>
-              <button
-                onClick={() => {
-                  const usersData = users.map(u => ({
-                    'ID': u.id,
-                    'Name': u.name,
-                    'Email': u.email,
-                    'Phone': u.phone || 'N/A',
-                    'Role': u.role,
-                    'Joined': new Date(u.createdAt).toLocaleDateString(),
-                    'Last Login': u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
-                  }));
-                  exportToCSV(usersData, 'users');
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
-              >
-                <FileJson className="w-4 h-4" /> Export as CSV
-              </button>
-            </div>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={exportUsers}
+          >
+            <Table2 className="w-4 h-4" /> XLSX
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={() => {
+              const usersData = users.map(u => ({
+                'ID': u.id,
+                'Name': u.name,
+                'Email': u.email,
+                'Phone': u.phone || 'N/A',
+                'Role': u.role,
+                'Joined': new Date(u.createdAt).toLocaleDateString(),
+                'Last Login': u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
+              }));
+              exportToCSV(usersData, 'users');
+            }}
+          >
+            <FileJson className="w-4 h-4" /> CSV
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -833,8 +940,8 @@ export default function AdminDashboard() {
                 <p className="text-xs text-gray-400 mt-1">
                   Joined: {new Date(user.createdAt).toLocaleDateString()}
                 </p>
-                {/* Role assignment buttons for superadmin */}
-                {isSuperadmin && user.role !== 'superadmin' && (
+                {/* Role assignment buttons for admin and superadmin */}
+                {isAdmin && user.role !== 'superadmin' && (
                   <div className="mt-2 flex gap-2 justify-end">
                     <button
                       onClick={() => handleAssignRole(user.id, 'user')}
@@ -876,44 +983,41 @@ export default function AdminDashboard() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{t('records')} ({records.length})</CardTitle>
         <div className="flex gap-2">
-          <div className="group relative">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export
-            </Button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
-              <button
-                onClick={exportRecords}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
-              >
-                <Table2 className="w-4 h-4" /> Export as XLSX
-              </button>
-              <button
-                onClick={() => {
-                  const recordsData = records.map(r => ({
-                    'ID': r.id,
-                    'User Name': r.user?.name || 'Unknown',
-                    'User Email': r.user?.email || 'Unknown',
-                    'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
-                    'Age': r.vitals?.age || '',
-                    'Systolic BP': r.vitals?.systolicBP || '',
-                    'Diastolic BP': r.vitals?.diastolicBP || '',
-                    'Blood Sugar': r.vitals?.bloodSugar || '',
-                    'Body Temperature': r.vitals?.bodyTemp || '',
-                    'Heart Rate': r.vitals?.heartRate || '',
-                    'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
-                    'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
-                    'Risk Level': r.result.level,
-                    'Risk Score': r.result.score,
-                    'Class': getRiskClass(r.result.level),
-                  }));
-                  exportToCSV(recordsData, 'assessment_records');
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
-              >
-                <FileJson className="w-4 h-4" /> Export as CSV
-              </button>
-            </div>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={exportRecords}
+          >
+            <Table2 className="w-4 h-4" /> XLSX
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={() => {
+              const recordsData = records.map(r => ({
+                'ID': r.id,
+                'User Name': r.user?.name || 'Unknown',
+                'User Email': r.user?.email || 'Unknown',
+                'Assessment Date': new Date(r.timestamp).toLocaleDateString(),
+                'Age': r.vitals?.age || '',
+                'Systolic BP': r.vitals?.systolicBP || '',
+                'Diastolic BP': r.vitals?.diastolicBP || '',
+                'Blood Sugar': r.vitals?.bloodSugar || '',
+                'Body Temperature': r.vitals?.bodyTemp || '',
+                'Heart Rate': r.vitals?.heartRate || '',
+                'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
+                'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
+                'Risk Level': r.result.level,
+                'Risk Score': r.result.score,
+                'Class': getRiskClass(r.result.level),
+              }));
+              exportToCSV(recordsData, 'assessment_records');
+            }}
+          >
+            <FileJson className="w-4 h-4" /> CSV
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -949,40 +1053,37 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl font-bold">{t('doctors')}</h2>
         <div className="flex gap-2">
-          <div className="group relative">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export
-            </Button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden group-hover:block z-10">
-              <button
-                onClick={exportDoctors}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm"
-              >
-                <Table2 className="w-4 h-4" /> Export as XLSX
-              </button>
-              <button
-                onClick={() => {
-                  const doctorsData = doctors.map(d => ({
-                    'ID': d.id,
-                    'Name': d.name,
-                    'Specialty': d.specialty,
-                    'Email': d.email,
-                    'Phone': d.phone,
-                    'Education': d.education,
-                    'Experience (years)': d.experience,
-                    'Languages': d.languages.join(', '),
-                    'Available': d.available ? 'Yes' : 'No',
-                    'Rating': d.rating,
-                    'Reviews': d.reviews,
-                  }));
-                  exportToCSV(doctorsData, 'doctors');
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 text-sm border-t"
-              >
-                <FileJson className="w-4 h-4" /> Export as CSV
-              </button>
-            </div>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={exportDoctors}
+          >
+            <Table2 className="w-4 h-4" /> XLSX
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2"
+            onClick={() => {
+              const doctorsData = doctors.map(d => ({
+                'ID': d.id,
+                'Name': d.name,
+                'Specialty': d.specialty,
+                'Email': d.email,
+                'Phone': d.phone,
+                'Education': d.education,
+                'Experience (years)': d.experience,
+                'Languages': d.languages.join(', '),
+                'Available': d.available ? 'Yes' : 'No',
+                'Rating': d.rating,
+                'Reviews': d.reviews,
+              }));
+              exportToCSV(doctorsData, 'doctors');
+            }}
+          >
+            <FileJson className="w-4 h-4" /> CSV
+          </Button>
           <Button
             onClick={() => { setEditingDoctor(null); setShowDoctorForm(true); }}
             className="bg-mamacare-coral hover:bg-mamacare-coral-dark"
@@ -1065,6 +1166,25 @@ export default function AdminDashboard() {
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
                 />
+              </div>
+              <div>
+                <Label>Profile Image</Label>
+                <div className="flex items-center gap-2">
+                  <Input name="image" defaultValue={editingDoctor?.image} placeholder="Image URL" />
+                  <label className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
+                    <Camera className="w-4 h-4" />
+                    <span className="text-sm">Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setDoctorImageFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {doctorImageFile && (
+                  <p className="text-sm text-gray-600 mt-1">Selected: {doctorImageFile.name}</p>
+                )}
               </div>
               <div>
                 <Label>Education</Label>
@@ -1200,6 +1320,35 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Featured Topics ({featuredTopics.length})</CardTitle>
+          <Button className="bg-mamacare-coral hover:bg-mamacare-coral-dark" onClick={() => { setEditingTopic(null); setShowTopicForm(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Add Topic
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {featuredTopics.map((topic) => (
+            <div key={topic.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-semibold">{topic.title}</p>
+                <p className="text-sm text-gray-500">{topic.description}</p>
+                <p className="text-xs text-gray-400 uppercase mt-1">{topic.category}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditingTopic(topic); setShowTopicForm(true); }}>
+                  Edit
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteTopic(topic.id)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+          {featuredTopics.length === 0 && <p className="text-gray-500 text-center py-6">No featured topics yet. Add one to make education content available to users.</p>}
+        </CardContent>
+      </Card>
+
       {showPostForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-auto">
@@ -1310,6 +1459,43 @@ export default function AdminDashboard() {
                 </Button>
                 <Button type="submit" className="flex-1 bg-mamacare-coral hover:bg-mamacare-coral-dark text-white">
                   Save Wearable
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showTopicForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display text-2xl font-bold">{editingTopic ? 'Edit Featured Topic' : 'Add Featured Topic'}</h3>
+              <button onClick={() => { setShowTopicForm(false); setEditingTopic(null); }}><X className="w-6 h-6" /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); handleSaveTopic(new FormData(event.currentTarget)); }} className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input name="title" defaultValue={editingTopic?.title} required />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input name="description" defaultValue={editingTopic?.description} required />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Input name="category" defaultValue={editingTopic?.category} required />
+              </div>
+              <div>
+                <Label>Body</Label>
+                <textarea name="body" defaultValue={editingTopic?.body} className="w-full px-3 py-2 border rounded-lg" rows={6} />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowTopicForm(false); setEditingTopic(null); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 bg-mamacare-coral hover:bg-mamacare-coral-dark text-white">
+                  Save Topic
                 </Button>
               </div>
             </form>
@@ -1438,7 +1624,7 @@ export default function AdminDashboard() {
                                 {new Date(record.timestamp).toLocaleDateString()}
                               </p>
                               <p className="text-xs text-gray-500">
-                                Score: {record.result.score}
+                                Score: {record.result.score} | {record.result.alertStatus || 'Routine Monitoring'}
                               </p>
                             </div>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -1449,6 +1635,29 @@ export default function AdminDashboard() {
                               {record.result.level.toUpperCase()}
                             </span>
                           </div>
+                          <div className="mt-3 grid md:grid-cols-2 gap-3 text-xs text-gray-600">
+                            <div>
+                              <p className="font-semibold text-gray-800">Vital drivers</p>
+                              {(record.result.vitalContributions || []).length > 0 ? record.result.vitalContributions?.map((item) => (
+                                <p key={item.feature}>{item.label}: +{item.contribution} ({item.value})</p>
+                              )) : <p>No abnormal vital contribution detected.</p>}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-800">Symptoms correlated with vitals</p>
+                              {(record.result.correlations || []).length > 0 ? record.result.correlations?.map((item, index) => (
+                                <p key={`${item.symptom}-${item.vital}-${index}`}>{item.symptom} + {item.vitalLabel} ({item.vitalValue} {item.vitalUnit})</p>
+                              )) : <p>No correlation recorded.</p>}
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-500">{record.result.deltaRisk !== null && record.result.deltaRisk !== undefined ? `Risk change: ${record.result.deltaRisk > 0 ? '+' : ''}${record.result.deltaRisk}` : 'Baseline observation'}</p>
+                          {(record.result.riskCategories || []).length > 0 && (
+                            <div className="mt-3 border-t pt-2 text-xs">
+                              <p className="font-semibold text-gray-800">Risk categories</p>
+                              {record.result.riskCategories?.map((category) => (
+                                <p key={category.name} className="text-gray-600">{category.name}: {category.evidence.join('; ')}</p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

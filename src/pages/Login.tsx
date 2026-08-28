@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Mail, Lock, Phone, Chrome, Eye, EyeOff, ArrowRight
 } from 'lucide-react';
@@ -10,11 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function Login() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { login, loginWithGoogle, loginWithPhone } = useAuth();
+  // We pull 'login' and 'loginWithGoogle' from the context
+  const { loginWithGoogle, login } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
@@ -28,35 +30,39 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    let success;
-    if (loginMethod === 'email') {
-      success = await login(formData.email, formData.password);
-    } else {
-      success = await loginWithPhone(formData.phone);
-    }
-
-    setIsLoading(false);
-    if (success) {
-      navigate('/');
+    try {
+      if (loginMethod === 'email') {
+        // This calls the login function in AuthContext which hits your Render backend
+        await login(formData.email, formData.password);
+        toast.success('Welcome back!');
+        navigate('/profile');
+      } else {
+        toast.info('Phone login is currently being updated.');
+      }
+    } catch (error: any) {
+      // Show the specific error message from your backend if available
+      toast.error(error?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleGoogleLoginClick = useGoogleLogin({
-    onSuccess: async (credentialResponse: any) => {
-      setIsLoading(true);
-      try {
-        const success = await loginWithGoogle(credentialResponse);
-        if (success) {
-          navigate('/');
-        }
-      } finally {
-        setIsLoading(false);
+  const handleGoogleLoginClick = async () => {
+    setIsLoading(true);
+    try {
+      // This triggers Firebase Login -> Then hits your Render /auth/google endpoint
+      const user = await loginWithGoogle();
+      if (user) {
+        toast.success('Signed in with Google');
+        navigate('/profile');
       }
-    },
-    onError: () => {
-      alert('Google login failed. Please try again.');
-    },
-  });
+    } catch (error: any) {
+      console.error('Login redirect error:', error);
+      toast.error(error?.message || 'Google sign-in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen py-24 bg-gradient-to-br from-mamacare-champagne via-white to-mamacare-champagne">
@@ -70,24 +76,21 @@ export default function Login() {
               <p className="text-gray-600">{t('signInToContinue')}</p>
             </div>
 
-            {/* Login Method Tabs */}
             <div className="flex gap-2 mb-6">
               <button
+                type="button"
                 onClick={() => setLoginMethod('email')}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  loginMethod === 'email'
-                    ? 'bg-mamacare-coral text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  loginMethod === 'email' ? 'bg-mamacare-coral text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
                 Email
               </button>
               <button
+                type="button"
                 onClick={() => setLoginMethod('phone')}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  loginMethod === 'phone'
-                    ? 'bg-mamacare-coral text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  loginMethod === 'phone' ? 'bg-mamacare-coral text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
                 Phone
@@ -103,7 +106,6 @@ export default function Login() {
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
                         type="email"
-                        placeholder="you@example.com"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="pl-10"
@@ -117,7 +119,6 @@ export default function Login() {
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <Input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="pl-10 pr-10"
@@ -140,7 +141,6 @@ export default function Login() {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <Input
                       type="tel"
-                      placeholder="+234 800 000 0000"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="pl-10"
@@ -149,16 +149,6 @@ export default function Login() {
                   </div>
                 </div>
               )}
-
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                  <span className="text-gray-600">Remember me</span>
-                </label>
-                <Link to="#" className="text-sm text-mamacare-coral hover:underline">
-                  {t('forgotPassword')}
-                </Link>
-              </div>
 
               <Button
                 type="submit"
@@ -182,7 +172,7 @@ export default function Login() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleGoogleLoginClick()}
+              onClick={handleGoogleLoginClick}
               disabled={isLoading}
               className="w-full py-6"
             >
@@ -196,7 +186,6 @@ export default function Login() {
                 {t('createAccount')}
               </Link>
             </p>
-
           </CardContent>
         </Card>
       </div>

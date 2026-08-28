@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   BookOpen, Search, Clock, User, ArrowRight, Apple, Dumbbell,
   Brain, Baby, HeartPulse, Sparkles, X, Calendar, Tag
@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { educationArticles, type EducationArticle } from '@/data/education';
+import { API_BASE_URL } from '@/lib/api';
 
 const categories = [
   { id: 'all', label: 'All Topics', icon: BookOpen },
@@ -19,11 +20,49 @@ const categories = [
   { id: 'newborn', label: 'Newborn Care', icon: Sparkles },
 ];
 
+const topicIconMap: Record<string, typeof BookOpen> = {
+  nutrition: Apple,
+  exercise: Dumbbell,
+  'mental-health': Brain,
+  prenatal: Baby,
+  postnatal: HeartPulse,
+  newborn: Sparkles,
+  default: BookOpen,
+};
+
+type FeaturedTopic = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  body?: string;
+};
+
 export default function EducationHub() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedArticle, setSelectedArticle] = useState<EducationArticle | null>(null);
+  const [featuredTopics, setFeaturedTopics] = useState<FeaturedTopic[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<FeaturedTopic | null>(null);
+  const [topicsLoading, setTopicsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTopics = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/featured-topics`);
+        if (!response.ok) throw new Error('Unable to load topics');
+        const data = await response.json();
+        setFeaturedTopics(data);
+      } catch (error) {
+        console.error('Error fetching featured topics:', error);
+      } finally {
+        setTopicsLoading(false);
+      }
+    };
+
+    fetchTopics();
+  }, []);
 
   const filteredArticles = educationArticles.filter((article) => {
     const matchesSearch = 
@@ -193,27 +232,77 @@ export default function EducationHub() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-3xl font-bold text-mamacare-charcoal mb-8">Featured Topics</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { title: 'Nutrition & Diet', desc: 'Essential nutrients for a healthy pregnancy', icon: Apple, color: 'bg-green-100 text-green-600' },
-              { title: 'Exercise & Fitness', desc: 'Safe exercises during each trimester', icon: Dumbbell, color: 'bg-blue-100 text-blue-600' },
-              { title: 'Mental Health', desc: 'Managing pregnancy anxiety and stress', icon: Brain, color: 'bg-purple-100 text-purple-600' },
-              { title: 'Prenatal Care', desc: 'What to expect during pregnancy', icon: Baby, color: 'bg-pink-100 text-pink-600' },
-              { title: 'Postnatal Care', desc: 'Recovery after childbirth', icon: HeartPulse, color: 'bg-red-100 text-red-600' },
-              { title: 'Newborn Care', desc: 'Essential tips for new parents', icon: Sparkles, color: 'bg-amber-100 text-amber-600' },
-            ].map((topic, idx) => (
-              <div key={idx} className="flex items-start gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-mamacare-champagne/30 transition-colors cursor-pointer">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${topic.color}`}>
-                  <topic.icon className="w-6 h-6" />
+            {topicsLoading ? (
+              <div className="col-span-full text-center py-12 text-gray-500">Loading featured topics...</div>
+            ) : featuredTopics.length > 0 ? (
+              featuredTopics.map((topic) => {
+                const Icon = topicIconMap[topic.category] || topicIconMap.default;
+                return (
+                  <div
+                    key={topic.id}
+                    className="flex items-start gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-mamacare-champagne/30 transition-colors cursor-pointer"
+                    onClick={() => setSelectedTopic(topic)}
+                  >
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-mamacare-coral/10 text-mamacare-coral">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-lg font-semibold text-mamacare-charcoal">{topic.title}</h3>
+                      <p className="text-sm text-gray-600">{topic.description}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              [
+                { title: 'Nutrition & Diet', desc: 'Essential nutrients for a healthy pregnancy', icon: Apple, color: 'bg-green-100 text-green-600' },
+                { title: 'Exercise & Fitness', desc: 'Safe exercises during each trimester', icon: Dumbbell, color: 'bg-blue-100 text-blue-600' },
+                { title: 'Mental Health', desc: 'Managing pregnancy anxiety and stress', icon: Brain, color: 'bg-purple-100 text-purple-600' },
+                { title: 'Prenatal Care', desc: 'What to expect during pregnancy', icon: Baby, color: 'bg-pink-100 text-pink-600' },
+                { title: 'Postnatal Care', desc: 'Recovery after childbirth', icon: HeartPulse, color: 'bg-red-100 text-red-600' },
+                { title: 'Newborn Care', desc: 'Essential tips for new parents', icon: Sparkles, color: 'bg-amber-100 text-amber-600' },
+              ].map((topic, idx) => (
+                <div key={idx} className="flex items-start gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-mamacare-champagne/30 transition-colors cursor-not-allowed opacity-80">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${topic.color}`}>
+                    <topic.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg font-semibold text-mamacare-charcoal">{topic.title}</h3>
+                    <p className="text-sm text-gray-600">{topic.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display text-lg font-semibold text-mamacare-charcoal">{topic.title}</h3>
-                  <p className="text-sm text-gray-600">{topic.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>
+
+      {/* Featured Topic Detail Modal */}
+      {selectedTopic && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="relative h-28 bg-mamacare-coral/10 rounded-t-2xl p-6">
+              <div className="absolute right-4 top-4">
+                <button onClick={() => setSelectedTopic(null)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100">
+                  <X className="w-6 h-6 text-mamacare-coral" />
+                </button>
+              </div>
+              <h2 className="text-3xl font-bold text-mamacare-charcoal">{selectedTopic.title}</h2>
+              <p className="text-gray-600 mt-2">{selectedTopic.description}</p>
+            </div>
+            <div className="p-6 sm:p-8">
+              <div className="prose prose-lg max-w-none text-gray-700">
+                <p>{selectedTopic.body || selectedTopic.description}</p>
+              </div>
+              <div className="mt-8 flex justify-end">
+                <Button variant="outline" onClick={() => setSelectedTopic(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Article Detail Modal */}
       {selectedArticle && (

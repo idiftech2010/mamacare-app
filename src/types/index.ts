@@ -9,9 +9,17 @@ export interface RiskAssessmentData {
 
 export interface RiskResult {
   level: 'low' | 'medium' | 'high';
+  score: number;
   confidence: number;
   recommendations: string[];
   keyFactors: string[];
+  factors?: string[];
+  vitalContributions?: Array<{ feature: string; label: string; contribution: number; reason: string; value: number }>;
+  symptomContributions?: Array<{ symptom: string; contribution: number; reason: string }>;
+  correlations?: Array<{ symptom: string; vital: string; vitalLabel: string; vitalValue: number; relationship: string; strength: string }>;
+  previousRisk?: number | null;
+  deltaRisk?: number | null;
+  alertStatus?: string;
 }
 
 export interface Language {

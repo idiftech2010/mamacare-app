@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   User, Mail, Phone, Calendar, Droplets, Pill, AlertCircle,
-  Activity, CalendarCheck, Edit2, Save
+  Activity, CalendarCheck, Edit2, Save, Camera
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 // Mock assessment history
 const mockAssessments = [
@@ -27,6 +28,7 @@ export default function Profile() {
   const { t } = useLanguage();
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -46,13 +48,25 @@ export default function Profile() {
         age: parseInt(formData.age as string) || undefined,
         dueDate: formData.dueDate || undefined,
         bloodType: formData.bloodType || undefined,
-        allergies: formData.allergies.split(',').map(s => s.trim()).filter(Boolean),
-        medications: formData.medications.split(',').map(s => s.trim()).filter(Boolean),
+        allergies: formData.allergies.split(',').map((s: string) => s.trim()).filter(Boolean),
+        medications: formData.medications.split(',').map((s: string) => s.trim()).filter(Boolean),
       },
     });
     
     if (success) {
       setIsEditing(false);
+      toast.success("Profile updated successfully");
+    }
+  };
+
+  const handlePictureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfilePicture(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -74,8 +88,29 @@ export default function Profile() {
           {/* Profile Card */}
           <Card className="md:col-span-1">
             <CardContent className="p-6 text-center">
-              <div className="w-24 h-24 bg-mamacare-coral rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white text-3xl font-bold">{user?.name.charAt(0).toUpperCase()}</span>
+              <div className="relative w-24 h-24 mx-auto mb-4">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-24 h-24 bg-mamacare-coral rounded-full flex items-center justify-center">
+                    <span className="text-white text-3xl font-bold">{user?.name?.charAt(0).toUpperCase() || 'U'}</span>
+                  </div>
+                )}
+                {isEditing && (
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-mamacare-coral rounded-full flex items-center justify-center cursor-pointer hover:bg-mamacare-coral-dark transition-colors">
+                    <Camera className="w-4 h-4 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePictureUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
               <h2 className="font-display text-xl font-semibold">{user?.name}</h2>
               <p className="text-gray-500 text-sm">{user?.email}</p>

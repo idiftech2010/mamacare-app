@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
 import { 
   Mail, Lock, Phone, User, Chrome, Eye, EyeOff, ArrowRight
 } from 'lucide-react';
@@ -10,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function Register() {
   const { t } = useLanguage();
@@ -30,41 +30,50 @@ export default function Register() {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
     
     if (!formData.agreeTerms) {
-      alert('Please agree to the terms');
+      toast.error('Please agree to the terms');
       return;
     }
 
     setIsLoading(true);
-    const success = await register(formData.email, formData.password, formData.name, formData.phone);
-    setIsLoading(false);
-    
-    if (success) {
-      navigate('/');
+    try {
+      // Matches the updated AuthContext: email, password, name, phone
+      const success = await register(
+        formData.email, 
+        formData.password, 
+        formData.name, 
+        formData.phone
+      );
+      
+      if (success) {
+        toast.success("Account created successfully!");
+        navigate('/profile');
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Registration failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleGoogleRegisterClick = useGoogleLogin({
-    onSuccess: async (credentialResponse: any) => {
-      setIsLoading(true);
-      try {
-        const success = await loginWithGoogle(credentialResponse);
-        if (success) {
-          navigate('/');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    onError: () => {
+  const handleGoogleRegisterClick = async () => {
+    setIsLoading(true);
+    try {
+      // Calling the Firebase Google Login from AuthContext
+      await loginWithGoogle();
+      toast.success("Signed up with Google!");
+      navigate('/profile');
+    } catch (error: any) {
+      console.error("Google registration error:", error);
+      toast.error("Google registration failed");
+    } finally {
       setIsLoading(false);
-      alert('Google registration failed. Please try again.');
-    },
-  });
+    }
+  };
 
   return (
     <div className="min-h-screen py-24 bg-gradient-to-br from-mamacare-champagne via-white to-mamacare-champagne">
@@ -192,7 +201,7 @@ export default function Register() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleGoogleRegisterClick()}
+              onClick={handleGoogleRegisterClick}
               disabled={isLoading}
               className="w-full py-6"
             >

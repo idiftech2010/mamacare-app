@@ -2,7 +2,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
   Heart, Menu, X, Globe, User, LogOut, ChevronDown,
-  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity
+  LayoutDashboard, Stethoscope, Watch, BookOpen, Activity,
+  Facebook, Instagram, Twitter, MessageCircle, Music, Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage, languages } from '@/contexts/LanguageContext';
@@ -10,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import EmergencyButton from './EmergencyButton';
 import SupportChatWidget from './SupportChatWidget';
+import InstallPrompt from './InstallPrompt';
 
 export default function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -290,16 +292,34 @@ export default function Layout() {
           
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-white/40 text-sm">
-              © 2025 MamaCare. {t('rights')} {t('researchBy')}
+              © 2026 MamaCare. {t('rights')} {t('researchBy')}
             </p>
             <div className="flex gap-4">
-              <a href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
-                <Globe className="w-5 h-5 text-white" />
+              <a href="https://facebook.com/mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <Facebook className="w-5 h-5 text-white" />
+              </a>
+              <a href="https://twitter.com/mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <Twitter className="w-5 h-5 text-white" />
+              </a>
+              <a href="https://instagram.com/mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <Instagram className="w-5 h-5 text-white" />
+              </a>
+              <a href="https://linkedin.com/company/mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <Briefcase className="w-5 h-5 text-white" />
+              </a>
+              <a href="https://youtube.com/@mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </a>
+              <a href="https://tiktok.com/@mamacareafrica" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-mamacare-coral transition-colors">
+                <Music className="w-5 h-5 text-white" />
               </a>
             </div>
           </div>
         </div>
       </footer>
+      
+      {/* Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }

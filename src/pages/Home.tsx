@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Heart, Activity, Video, BookOpen, ArrowRight, ChevronLeft, ChevronRight,
-  Star, Quote
+  Star, Quote, Shield, Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -189,26 +189,26 @@ export default function Home() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="max-w-2xl">
             <div className="space-y-6">
-              <h1 className="hero-title font-display text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight">
+              <h1 className="hero-title font-sans text-6xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight text-white leading-tight">
                 {t('heroTitle')}
               </h1>
-              <p className="hero-subtitle font-display text-2xl sm:text-3xl text-mamacare-coral font-medium">
+              <p className="hero-subtitle font-sans text-3xl sm:text-4xl text-mamacare-coral-dark font-semibold tracking-tight">
                 {t('heroSubtitle')}
               </p>
-              <p className="text-lg text-white/80 max-w-lg leading-relaxed">
+              <p className="text-xl sm:text-2xl text-white/90 max-w-lg leading-relaxed">
                 {carouselImages[currentSlide].description}
               </p>
             </div>
 
             <div className="hero-buttons flex flex-wrap gap-4 mt-10">
               <Link to="/assessment">
-                <Button className="bg-mamacare-coral hover:bg-mamacare-coral-dark text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all">
+                <Button className="bg-mamacare-coral-dark hover:bg-mamacare-coral text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all">
                   {t('startJourney')}
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
               <Link to="/education">
-                <Button variant="outline" className="border-2 border-mamacare-coral text-mamacare-coral hover:bg-mamacare-coral hover:text-mamacare-charcoal px-8 py-6 text-lg rounded-full transition-all">
+                <Button variant="outline" className="border-2 border-mamacare-coral-dark text-mamacare-coral-dark hover:bg-mamacare-coral-dark hover:text-mamacare-charcoal px-8 py-6 text-lg rounded-full transition-all">
                   {t('learnMore')}
                 </Button>
               </Link>
@@ -221,7 +221,7 @@ export default function Home() {
                   <p className="text-sm text-gray-600">Open the MamaCare chat widget for 24/7 support, AI guidance, and pregnancy advice.</p>
                 </div>
                 <Button
-                  className="bg-mamacare-coral hover:bg-mamacare-coral-dark text-white"
+                  className="bg-mamacare-coral-dark hover:bg-mamacare-coral text-white"
                   onClick={() => window.dispatchEvent(new CustomEvent('openMamacareChat'))}
                 >
                   Chat with Support
@@ -232,21 +232,61 @@ export default function Home() {
             {/* Stats */}
             <div className="flex flex-wrap gap-8 mt-12">
               <div className="text-center">
-                <p className="font-display text-4xl font-bold text-mamacare-coral">84%</p>
+                <p className="font-display text-4xl font-bold text-mamacare-coral-dark">84%</p>
                 <p className="text-sm text-white/70">{t('aiAccuracy')}</p>
               </div>
               <div className="text-center">
-                <p className="font-display text-4xl font-bold text-mamacare-coral">9</p>
+                <p className="font-display text-4xl font-bold text-mamacare-coral-dark">9</p>
                 <p className="text-sm text-white/70">{t('languages')}</p>
               </div>
               <div className="text-center">
-                <p className="font-display text-4xl font-bold text-mamacare-coral">24/7</p>
+                <p className="font-display text-4xl font-bold text-mamacare-coral-dark">24/7</p>
                 <p className="text-sm text-white/70">{t('support')}</p>
               </div>
               <div className="text-center">
-                <p className="font-display text-4xl font-bold text-mamacare-coral">10K+</p>
+                <p className="font-display text-4xl font-bold text-mamacare-coral-dark">10K+</p>
                 <p className="text-sm text-white/70">{t('mothersHelped')}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mission Section */}
+      <section className="py-12 bg-mamacare-cream">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 scroll-reveal">
+            <h2 className="font-sans text-4xl sm:text-5xl font-extrabold text-mamacare-charcoal mb-4">
+              Our Mission: Saving Lives Across Africa
+            </h2>
+            <p className="text-lg sm:text-xl text-mamacare-dark-grey max-w-2xl mx-auto leading-relaxed">
+              Together, we&apos;re transforming maternal healthcare and preventing unnecessary deaths.
+            </p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="rounded-3xl bg-white p-8 shadow-xl border border-mamacare-champagne">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-mamacare-coral/10 text-mamacare-coral mb-6">
+                <Heart className="w-7 h-7" />
+              </div>
+              <p className="text-4xl font-extrabold text-mamacare-charcoal">500+</p>
+              <h3 className="mt-3 text-lg font-semibold text-mamacare-charcoal">Deaths per 100,000 births in Africa</h3>
+              <p className="mt-2 text-sm text-gray-600">We&apos;re working to change this.</p>
+            </div>
+            <div className="rounded-3xl bg-white p-8 shadow-xl border border-mamacare-champagne">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-mamacare-coral/10 text-mamacare-coral mb-6">
+                <Shield className="w-7 h-7" />
+              </div>
+              <p className="text-4xl font-extrabold text-mamacare-charcoal">95%</p>
+              <h3 className="mt-3 text-lg font-semibold text-mamacare-charcoal">Of deaths are preventable</h3>
+              <p className="mt-2 text-sm text-gray-600">With early detection and care.</p>
+            </div>
+            <div className="rounded-3xl bg-white p-8 shadow-xl border border-mamacare-champagne">
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-mamacare-coral/10 text-mamacare-coral mb-6">
+                <Globe className="w-7 h-7" />
+              </div>
+              <p className="text-4xl font-extrabold text-mamacare-charcoal">23+</p>
+              <h3 className="mt-3 text-lg font-semibold text-mamacare-charcoal">Languages supported</h3>
+              <p className="mt-2 text-sm text-gray-600">Reaching every community.</p>
             </div>
           </div>
         </div>

@@ -1,0 +1,22 @@
+{
+  "name": "MamaCare - AI-Powered Maternal Health",
+  "short_name": "MamaCare",
+  "description": "Comprehensive maternal health platform with AI risk assessment, telemedicine, and education",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fffaf5",
+  "theme_color": "#f08080",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

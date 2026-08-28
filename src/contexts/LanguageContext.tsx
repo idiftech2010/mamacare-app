@@ -208,7 +208,7 @@ export const translations: Record<string, Record<string, string>> = {
     supportPhone: '+234 800 MAMACARE',
     location: 'Lagos, Nigeria',
     rights: 'All rights reserved.',
-    researchBy: 'Research by Idris Olanrewaju Ibraheem et al.',
+    researchBy: 'Research by Idris Olanrewaju Ibraheem',
     
     // Testimonials
     whatMothersSay: 'What Mothers Say',

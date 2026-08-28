@@ -14,6 +14,7 @@ import { LineChart, CartesianGrid, XAxis, YAxis, Line } from 'recharts';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/lib/api';
 
 interface RiskResultData {
   level: 'low' | 'medium' | 'high';
@@ -21,6 +22,13 @@ interface RiskResultData {
   confidence: number;
   factors: string[];
   recommendations: string[];
+  vitalContributions?: Array<{ feature: string; label: string; contribution: number; reason: string; value: number; unit: string }>;
+  symptomContributions?: Array<{ symptom: string; contribution: number; reason: string }>;
+  correlations?: Array<{ symptom: string; vital: string; vitalLabel: string; vitalValue: number; vitalUnit: string; relationship: string; strength: string }>;
+  previousRisk?: number | null;
+  deltaRisk?: number | null;
+  alertStatus?: string;
+  riskCategories?: Array<{ name: string; status: string; evidence: string[]; note?: string }>;
 }
 
 interface RiskResult {
@@ -55,8 +63,6 @@ const symptomsList = [
   'None'
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mamacare-backend-n1z7.onrender.com/api';
-
 export default function RiskAssessment() {
   const { t } = useLanguage();
   const { isAuthenticated, getToken } = useAuth();
@@ -70,6 +76,7 @@ export default function RiskAssessment() {
     systolicBP: '',
     diastolicBP: '',
     bloodSugar: '',
+    bloodSugarUnit: 'mmol/L',
     bodyTemp: '',
     heartRate: '',
     pregnancyWeek: '',
@@ -133,6 +140,11 @@ export default function RiskAssessment() {
       toast.error('Please fill in all fields');
       return;
     }
+    const temperature = parseFloat(formData.bodyTemp);
+    if (temperature > 43 || temperature < 34) {
+      toast.error('Invalid data: Out of physiological range');
+      return;
+    }
 
     setIsAssessing(true);
 
@@ -149,6 +161,7 @@ export default function RiskAssessment() {
           systolicBP: parseInt(formData.systolicBP),
           diastolicBP: parseInt(formData.diastolicBP),
           bloodSugar: parseFloat(formData.bloodSugar),
+          bloodSugarUnit: formData.bloodSugarUnit,
           bodyTemp: parseFloat(formData.bodyTemp),
           heartRate: parseInt(formData.heartRate),
           pregnancyWeek: formData.pregnancyWeek ? parseInt(formData.pregnancyWeek) : undefined,
@@ -309,6 +322,10 @@ export default function RiskAssessment() {
                       onChange={(e) => handleInputChange('bloodSugar', e.target.value)}
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                     />
+                    <select value={formData.bloodSugarUnit} onChange={(e) => handleInputChange('bloodSugarUnit', e.target.value)} className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-white">
+                      <option value="mmol/L" className="text-black">mmol/L</option>
+                      <option value="mg/dL" className="text-black">mg/dL</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-white flex items-center gap-2">
@@ -426,6 +443,36 @@ export default function RiskAssessment() {
                             <p key={idx} className="text-sm p-2 bg-white/50 rounded">{factor}</p>
                           ))}
                         </div>
+                      </div>
+
+                      <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
+                        <p className="text-sm font-semibold mb-2">Risk categories indicated by this assessment</p>
+                        {(riskResult.result.riskCategories || []).length > 0 ? riskResult.result.riskCategories?.map((category) => (
+                          <div key={category.name} className="mb-3 last:mb-0">
+                            <p className="text-sm font-semibold text-red-800">{category.name} <span className="font-normal">| {category.status}</span></p>
+                            {category.evidence.map((evidence) => <p key={evidence} className="text-sm text-gray-700">{evidence}</p>)}
+                            {category.note && <p className="text-xs text-gray-500 mt-1">{category.note}</p>}
+                          </div>
+                        )) : <p className="text-sm text-gray-500">No specific risk category indicated by the recorded thresholds.</p>}
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="rounded-lg bg-white/50 p-4">
+                          <p className="text-sm font-semibold mb-2">Vital drivers</p>
+                          {(riskResult.result.vitalContributions || []).length > 0 ? riskResult.result.vitalContributions?.map((item) => (
+                            <p key={item.feature} className="text-sm mb-1">{item.label}: +{item.contribution} ({item.value} {item.unit})</p>
+                          )) : <p className="text-sm text-gray-500">No abnormal vital contribution detected.</p>}
+                        </div>
+                        <div className="rounded-lg bg-white/50 p-4">
+                          <p className="text-sm font-semibold mb-2">Symptoms and vitals</p>
+                          {(riskResult.result.correlations || []).length > 0 ? riskResult.result.correlations?.map((item, index) => (
+                            <p key={`${item.symptom}-${item.vital}-${index}`} className="text-sm mb-1">{item.symptom} + {item.vitalLabel} ({item.vitalValue} {item.vitalUnit}): {item.relationship}</p>
+                          )) : <p className="text-sm text-gray-500">No symptom-vital correlation recorded.</p>}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-sm font-semibold">Clinical monitoring</p>
+                        <p className="text-sm mt-1">{riskResult.result.alertStatus || 'Routine Monitoring'}{riskResult.result.deltaRisk !== null && riskResult.result.deltaRisk !== undefined ? ` | Risk change: ${riskResult.result.deltaRisk > 0 ? '+' : ''}${riskResult.result.deltaRisk}` : ' | Baseline observation'}</p>
                       </div>
 
                       <div>
