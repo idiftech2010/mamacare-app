@@ -40,11 +40,19 @@ interface UserData {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'admin' | 'superadmin';
+  role: 'user' | 'admin' | 'superadmin' | 'clinician' | 'data_entry';
   createdAt: string;
   lastLogin?: string;
   phone?: string;
 }
+
+const roleLabels: Record<UserData['role'], string> = {
+  user: 'Patient',
+  admin: 'Administrator',
+  superadmin: 'Super Administrator',
+  clinician: 'Clinician',
+  data_entry: 'Data Entry Officer',
+};
 
 interface RecordData {
   id: string;
@@ -115,8 +123,9 @@ interface Stats {
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
-const { getToken, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic' | 'content'>('dashboard');
+const { getToken, isAdmin, isSuperadmin } = useAuth();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'records' | 'doctors' | 'clinic' | 'content' | 'clinicians'>('dashboard');
+  const [clinicians, setClinicians] = useState<UserData[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [records, setRecords] = useState<RecordData[]>([]);
@@ -173,7 +182,7 @@ const { getToken, isAdmin } = useAuth();
       }
 
       // Parallel fetch all data
-      const [statsRes, doctorsRes, usersRes, recordsRes, postsRes, galleryRes, wearablesRes, featuredTopicsRes] = await Promise.allSettled([
+      const [statsRes, doctorsRes, usersRes, recordsRes, postsRes, galleryRes, wearablesRes, featuredTopicsRes, cliniciansRes] = await Promise.allSettled([
         fetch(`${API_BASE_URL}/admin/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/doctors`),
         fetch(`${API_BASE_URL}/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -182,6 +191,7 @@ const { getToken, isAdmin } = useAuth();
         fetch(`${API_BASE_URL}/admin/gallery`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/admin/wearables`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/admin/featured-topics`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/admin/clinicians`, { headers: { 'Authorization': `Bearer ${token}` } }),
       ]);
 
       // Process stats
@@ -237,6 +247,7 @@ const { getToken, isAdmin } = useAuth();
         const data = await featuredTopicsRes.value.json();
         setFeaturedTopics(data);
       }
+      if (cliniciansRes.status === 'fulfilled' && cliniciansRes.value.ok) setClinicians(await cliniciansRes.value.json());
 
       toast.success('Dashboard data loaded');
     } catch (error) {
@@ -724,6 +735,18 @@ const { getToken, isAdmin } = useAuth();
     return records.filter(r => r.userId === patientId);
   };
 
+  const handleCreateClinician = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const response = await fetch(`${API_BASE_URL}/admin/clinicians`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify({ name: data.get('name'), email: data.get('email'), password: data.get('password'), phone: data.get('phone'), specialty: data.get('specialty'), clinicianType: data.get('clinicianType') }) });
+    if (!response.ok) return toast.error((await response.json()).error || 'Unable to create account');
+    setClinicians([...clinicians, await response.json()]);
+    event.currentTarget.reset();
+    toast.success('Clinical account created');
+  };
+
+  const renderClinicians = () => <div className="grid lg:grid-cols-2 gap-6"><Card><CardHeader><CardTitle>Create clinician login</CardTitle></CardHeader><CardContent><form onSubmit={handleCreateClinician} className="space-y-3"><Input name="name" placeholder="Full name" required /><Input name="email" type="email" placeholder="Email" required /><Input name="password" type="password" placeholder="Temporary password" required /><Input name="phone" placeholder="Phone" /><Input name="specialty" placeholder="Specialty" /><select name="clinicianType" className="w-full border rounded-lg px-3 py-2"><option value="clinician">Doctor / Nurse / CHEW</option><option value="data_entry">Data Entry Officer</option></select><Button type="submit" className="w-full bg-mamacare-coral hover:bg-mamacare-coral-dark">Create login</Button></form></CardContent></Card><Card><CardHeader><CardTitle>Clinical accounts ({clinicians.length})</CardTitle></CardHeader><CardContent className="space-y-2">{clinicians.map(clinician => <div key={clinician.id} className="p-3 bg-gray-50 rounded-lg"><p className="font-semibold">{clinician.name}</p><p className="text-sm text-gray-500">{clinician.email} · {clinician.role}</p></div>)}</CardContent></Card></div>;
+
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Refresh Button */}
@@ -935,7 +958,7 @@ const { getToken, isAdmin } = useAuth();
                   user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
                   'bg-blue-100 text-blue-700'
                 }`}>
-                  {user.role}
+                  {roleLabels[user.role]}
                 </span>
                 <p className="text-xs text-gray-400 mt-1">
                   Joined: {new Date(user.createdAt).toLocaleDateString()}
@@ -1741,6 +1764,7 @@ const { getToken, isAdmin } = useAuth();
             { id: 'doctors', label: t('doctors'), icon: Stethoscope },
             { id: 'content', label: t('content'), icon: BookOpen },
             { id: 'clinic', label: 'Clinic Access', icon: Calendar },
+            ...(isSuperadmin ? [{ id: 'clinicians', label: 'Clinical Accounts', icon: Users }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1763,6 +1787,7 @@ const { getToken, isAdmin } = useAuth();
         {activeTab === 'doctors' && renderDoctors()}
         {activeTab === 'content' && renderContentManagement()}
         {activeTab === 'clinic' && renderClinicAccess()}
+        {activeTab === 'clinicians' && isSuperadmin && renderClinicians()}
       </div>
     </div>
   );

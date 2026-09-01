@@ -33,9 +33,9 @@ export default function Login() {
     try {
       if (loginMethod === 'email') {
         // This calls the login function in AuthContext which hits your Render backend
-        await login(formData.email, formData.password);
+        const loggedInUser = await login(formData.email, formData.password);
         toast.success('Welcome back!');
-        navigate('/profile');
+        navigate(['clinician', 'data_entry'].includes(loggedInUser?.role) ? '/clinical' : '/profile');
       } else {
         toast.info('Phone login is currently being updated.');
       }

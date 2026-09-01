@@ -15,6 +15,7 @@ import DoctorProfile from './pages/DoctorProfile';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import AuthCallback from './pages/AuthCallback';
+import ClinicalDashboard from './pages/ClinicalDashboard';
 
 // Contexts & Auth
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -61,6 +62,9 @@ function AppRoutes() {
             <AdminDashboard />
           </AdminRoute>
         } />
+
+        <Route path="clinical" element={<PrivateRoute><ClinicalDashboard /></PrivateRoute>} />
+        <Route path="clinical/patients/:patientId" element={<PrivateRoute><ClinicalDashboard /></PrivateRoute>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

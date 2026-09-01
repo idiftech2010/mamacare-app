@@ -19,7 +19,7 @@ export default function Layout() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { t, currentLang, setLanguage } = useLanguage();
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, isClinical, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -151,6 +151,15 @@ export default function Layout() {
                         <User className="w-4 h-4" />
                         {t('profile')}
                       </Link>
+                      {isClinical && (
+                        <Link
+                          to="/clinical"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-mamacare-champagne transition-colors flex items-center gap-2 text-mamacare-charcoal"
+                        >
+                          <Briefcase className="w-4 h-4" />
+                          Clinical dashboard
+                        </Link>
+                      )}
                       {isAdmin && (
                         <Link
                           to="/admin"

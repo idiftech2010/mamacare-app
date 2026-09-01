@@ -24,6 +24,14 @@ const mockAppointments = [
   { id: 2, doctor: 'Dr. Fatima Al-Rashid', date: '2025-03-05', time: '2:00 PM', type: 'In-person', status: 'pending' },
 ];
 
+const roleLabels: Record<string, string> = {
+  user: 'Patient',
+  admin: 'Administrator',
+  superadmin: 'Super Administrator',
+  clinician: 'Clinician',
+  data_entry: 'Data Entry Officer',
+};
+
 export default function Profile() {
   const { t } = useLanguage();
   const { user, updateProfile } = useAuth();
@@ -117,7 +125,7 @@ export default function Profile() {
               <div className="mt-4 pt-4 border-t">
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
                   <User className="w-4 h-4" />
-                  {user?.role === 'admin' ? 'Administrator' : 'Member'}
+                  {roleLabels[user?.role || 'user'] || user?.role || 'Patient'}
                 </div>
               </div>
             </CardContent>

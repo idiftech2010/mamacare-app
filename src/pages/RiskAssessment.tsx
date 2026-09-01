@@ -65,12 +65,14 @@ const symptomsList = [
 
 export default function RiskAssessment() {
   const { t } = useLanguage();
-  const { isAuthenticated, getToken } = useAuth();
+  const { isAuthenticated, getToken, user } = useAuth();
   const [isAssessing, setIsAssessing] = useState(false);
   const [riskResult, setRiskResult] = useState<RiskResult | null>(null);
   const [pastAssessments, setPastAssessments] = useState<RiskResult[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
+  const [patients, setPatients] = useState<Array<{ id: string; patientId: string; name: string }>>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
   const [formData, setFormData] = useState({
     age: '',
     systolicBP: '',
@@ -88,6 +90,14 @@ export default function RiskAssessment() {
       fetchPastAssessments();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (user?.role !== 'data_entry') return;
+    fetch(`${API_BASE_URL}/clinical/patients`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(response => response.ok ? response.json() : [])
+      .then(setPatients)
+      .catch(() => toast.error('Unable to load patients'));
+  }, [user?.role, getToken]);
 
   const fetchPastAssessments = async () => {
     try {
@@ -132,6 +142,10 @@ export default function RiskAssessment() {
       toast.error('Please login to use the risk assessment');
       return;
     }
+    if (user?.role === 'data_entry' && !selectedPatientId) {
+      toast.error('Select a patient before recording an assessment');
+      return;
+    }
 
     // Validate inputs
     const requiredFields = ['age', 'systolicBP', 'diastolicBP', 'bloodSugar', 'bodyTemp', 'heartRate'];
@@ -165,6 +179,7 @@ export default function RiskAssessment() {
           bodyTemp: parseFloat(formData.bodyTemp),
           heartRate: parseInt(formData.heartRate),
           pregnancyWeek: formData.pregnancyWeek ? parseInt(formData.pregnancyWeek) : undefined,
+          patientId: selectedPatientId || undefined,
           symptoms: selectedSymptoms.filter(s => s !== 'None'),
           notes: additionalNotes,
         }),
@@ -261,6 +276,15 @@ export default function RiskAssessment() {
             <Card className="glassmorphism-dark bg-mamacare-dark-grey/90 border-none">
               <CardContent className="p-8">
                 <h2 className="font-display text-2xl font-bold text-white mb-6">Enter Your Vitals</h2>
+                {user?.role === 'data_entry' && (
+                  <div className="mb-6 space-y-2">
+                    <Label className="text-white">Patient</Label>
+                    <select value={selectedPatientId} onChange={(event) => setSelectedPatientId(event.target.value)} className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-white" required>
+                      <option value="" className="text-black">Select a registered patient</option>
+                      {patients.map(patient => <option key={patient.id} value={patient.id} className="text-black">{patient.patientId} - {patient.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-white flex items-center gap-2">

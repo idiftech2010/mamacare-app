@@ -9,12 +9,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isSuperadmin: boolean;
+  isClinical: boolean;
   isLoading: boolean;
   logout: () => Promise<void>;
   getToken: () => string | null;
   updateProfile: (data: any) => Promise<boolean>;
   register: (email: string, pass: string, name: string, phone?: string) => Promise<boolean>;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<any>;
   loginWithGoogle: () => Promise<any>;
 }
 
@@ -97,14 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const data = await response.json();
     saveAuthState(data.token, data.user);
-    return true;
+    return data.user;
   };
 
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, authProvider: 'email' }),
+      body: JSON.stringify({ email: email.trim(), password, authProvider: 'email' }),
     });
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
@@ -154,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: !!user,
       isAdmin: user?.role === 'admin' || user?.role === 'superadmin',
       isSuperadmin: user?.role === 'superadmin',
+      isClinical: ['clinician', 'data_entry'].includes(user?.role),
       isLoading,
       logout,
       getToken,
