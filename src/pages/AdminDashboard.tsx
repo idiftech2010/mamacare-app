@@ -119,6 +119,11 @@ interface Stats {
   totalDoctors: number;
   totalAppointments: number;
   riskDistribution: { low: number; medium: number; high: number };
+  computationalPerformance?: {
+    measuredAssessments: number;
+    averageExecutionTimeMs: number;
+    averageMemoryUtilizationMb: number;
+  };
 }
 
 export default function AdminDashboard() {
@@ -875,6 +880,29 @@ const { getToken, isAdmin, isSuperadmin } = useAuth();
           ) : (
             <p className="text-gray-500">Loading risk distribution chart...</p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>LSCDM Computational Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Measured assessments</p>
+              <p className="font-display text-2xl font-bold">{stats?.computationalPerformance?.measuredAssessments || 0}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Average execution time (Te)</p>
+              <p className="font-display text-2xl font-bold">{(stats?.computationalPerformance?.averageExecutionTimeMs || 0).toFixed(3)} ms</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">Average memory utilisation (Mu)</p>
+              <p className="font-display text-2xl font-bold">{(stats?.computationalPerformance?.averageMemoryUtilizationMb || 0).toFixed(3)} MB</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-4">CLSCDM = (Te, Mu), measured during LSCDM risk calculation.</p>
         </CardContent>
       </Card>
 
