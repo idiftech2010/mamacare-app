@@ -15,6 +15,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/lib/api';
+import { getPreviousPregnancyOutcomeCode } from '@/lib/assessmentReport';
 
 interface Doctor {
   id: string;
@@ -70,6 +71,14 @@ interface RecordData {
   pregnancyWeek?: number;
   symptoms?: string[];
   notes?: string;
+  previousPregnancyOutcomeCode?: number;
+  previousPregnancyHistory?: {
+    outcomes?: string[];
+    complications?: string[];
+    previousPregnancyOutcomeCode?: number;
+    previousMultiplePregnancy?: boolean | null;
+    unknown?: boolean;
+  };
   result: {
     level: 'low' | 'medium' | 'high';
     score: number;
@@ -671,6 +680,9 @@ const { getToken, isAdmin, isSuperadmin } = useAuth();
       'Body Temperature': r.vitals?.bodyTemp || '',
       'Heart Rate': r.vitals?.heartRate || '',
       'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
+      'Previous Pregnancy Outcomes': r.previousPregnancyHistory?.outcomes?.join(', ') || '',
+      'Previous Pregnancy Complications': r.previousPregnancyHistory?.complications?.join(', ') || '',
+      'Previous Pregnancy Outcome Code': r.previousPregnancyOutcomeCode ?? getPreviousPregnancyOutcomeCode(r.previousPregnancyHistory),
       'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
       'Risk Level': r.result.level,
       'Risk Score': r.result.score,
@@ -1059,6 +1071,9 @@ const { getToken, isAdmin, isSuperadmin } = useAuth();
                 'Body Temperature': r.vitals?.bodyTemp || '',
                 'Heart Rate': r.vitals?.heartRate || '',
                 'Current Symptoms': Array.isArray(r.symptoms) ? r.symptoms.join(', ') : r.symptoms || '',
+                'Previous Pregnancy Outcomes': r.previousPregnancyHistory?.outcomes?.join(', ') || '',
+                'Previous Pregnancy Complications': r.previousPregnancyHistory?.complications?.join(', ') || '',
+                'Previous Pregnancy Outcome Code': r.previousPregnancyOutcomeCode ?? getPreviousPregnancyOutcomeCode(r.previousPregnancyHistory),
                 'Key Risk Factor': Array.isArray(r.result.factors) ? r.result.factors[0] || '' : '',
                 'Risk Level': r.result.level,
                 'Risk Score': r.result.score,

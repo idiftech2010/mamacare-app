@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { API_BASE_URL } from '@/lib/api';
+import { downloadAssessmentReport, getPreviousPregnancyOutcomeCode } from '@/lib/assessmentReport';
 import { toast } from 'sonner';
 
 type Patient = { id: string; patientId: string; name: string; email: string; phone?: string; assessmentCount: number };
-type RecordData = { id: string; userId: string; timestamp: string; vitals?: Record<string, number>; symptoms?: string[]; result: { level: string; score: number; factors?: string[] } };
+type RecordData = { id: string; userId: string; timestamp: string; pregnancyWeek?: number; notes?: string; vitals?: Record<string, number>; symptoms?: string[]; previousPregnancyOutcomeCode?: number; previousPregnancyHistory?: { outcomes?: string[]; complications?: string[]; previousPregnancyOutcomeCode?: number }; result: { level: string; score: number; confidence?: number; factors?: string[]; recommendations?: string[]; alertStatus?: string } };
 
 const exportData = (rows: Record<string, unknown>[], format: 'csv' | 'xlsx') => {
   if (!rows.length) return toast.error('No data to export');
@@ -56,6 +57,9 @@ export default function ClinicalDashboard() {
     'Body Temperature': record.vitals?.bodyTemp || '',
     'Heart Rate': record.vitals?.heartRate || '',
     Symptoms: record.symptoms?.join(', ') || '',
+    'Previous Pregnancy Outcomes': record.previousPregnancyHistory?.outcomes?.join(', ') || '',
+    'Previous Pregnancy Complications': record.previousPregnancyHistory?.complications?.join(', ') || '',
+    'Previous Pregnancy Outcome Code': record.previousPregnancyOutcomeCode ?? getPreviousPregnancyOutcomeCode(record.previousPregnancyHistory),
     'Risk Level': record.result.level,
     'Risk Score': record.result.score,
   }));
@@ -66,7 +70,7 @@ export default function ClinicalDashboard() {
     return <div className="min-h-screen bg-mamacare-cream py-24"><div className="max-w-5xl mx-auto px-4 space-y-6">
       <Link to="/clinical" className="text-sm text-mamacare-coral hover:underline">Back to clinical dashboard</Link>
       <Card><CardHeader><CardTitle>{patient?.name || 'Patient EMR'}</CardTitle><p className="text-mamacare-coral">Patient ID: {patient?.patientId || patientId}</p></CardHeader><CardContent><div className="grid md:grid-cols-3 gap-4 text-sm"><div><p className="text-gray-500">Email</p><p>{patient?.email || 'Not available'}</p></div><div><p className="text-gray-500">Phone</p><p>{patient?.phone || 'Not provided'}</p></div><div><p className="text-gray-500">Assessments</p><p>{patientRecords.length}</p></div></div></CardContent></Card>
-      <Card><CardHeader><CardTitle>Assessment history</CardTitle></CardHeader><CardContent className="space-y-3">{patientRecords.map(record => <div key={record.id} className="p-4 rounded-lg bg-gray-50"><div className="flex justify-between"><p className="font-semibold">{new Date(record.timestamp).toLocaleString()}</p><span>{record.result.level} ({record.result.score})</span></div><p className="text-sm text-gray-600 mt-2">{record.result.factors?.join(', ') || 'No recorded risk factors'}</p><p className="text-sm text-gray-500 mt-2">Symptoms: {record.symptoms?.join(', ') || 'None recorded'}</p></div>)}{!patientRecords.length && <p className="text-gray-500">No assessment history recorded.</p>}</CardContent></Card>
+      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Assessment history</CardTitle>{patientRecords.length > 0 && <Button variant="outline" onClick={() => downloadAssessmentReport(patientRecords, patient?.name || 'Patient')}><Download className="w-4 h-4 mr-2" />PDF history</Button>}</div></CardHeader><CardContent className="space-y-3">{patientRecords.map(record => <div key={record.id} className="p-4 rounded-lg bg-gray-50"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-semibold">{new Date(record.timestamp).toLocaleString()}</p><div className="flex items-center gap-3"><span>{record.result.level} ({record.result.score})</span><Button variant="ghost" size="sm" aria-label="Download assessment PDF" onClick={() => downloadAssessmentReport([record], patient?.name || 'Patient')}><Download className="w-4 h-4" /></Button></div></div><p className="text-sm text-gray-600 mt-2">{record.result.factors?.join(', ') || 'No recorded risk factors'}</p><p className="text-sm text-gray-500 mt-2">Symptoms: {record.symptoms?.join(', ') || 'None recorded'}</p><p className="text-sm text-gray-500 mt-2">Previous pregnancy outcome code: {record.previousPregnancyOutcomeCode ?? getPreviousPregnancyOutcomeCode(record.previousPregnancyHistory)}</p></div>)}{!patientRecords.length && <p className="text-gray-500">No assessment history recorded.</p>}</CardContent></Card>
     </div></div>;
   }
 

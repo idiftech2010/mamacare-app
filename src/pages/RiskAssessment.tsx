@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Activity, AlertCircle, CheckCircle2, Info, ArrowRight,
   Heart, Thermometer, Droplets, Clock, User, FileText, X,
-  TrendingUp, Calendar
+  TrendingUp, Calendar, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/lib/api';
+import { downloadAssessmentReport } from '@/lib/assessmentReport';
 
 interface RiskResultData {
   level: 'low' | 'medium' | 'high';
@@ -52,6 +53,7 @@ interface PreviousPregnancyHistory {
   deliveryMethods: string[];
   complications: string[];
   unknown: boolean;
+  previousPregnancyOutcomeCode?: number;
 }
 
 interface RiskResult {
@@ -71,6 +73,7 @@ interface RiskResult {
     heartRate: number;
   };
   previousPregnancyHistory?: PreviousPregnancyHistory;
+  previousPregnancyOutcomeCode?: number;
 }
 
 const symptomsList = [
@@ -595,6 +598,10 @@ export default function RiskAssessment() {
                         {riskResult.previousPregnancyHistory && (riskResult.previousPregnancyHistory.outcomes.length + riskResult.previousPregnancyHistory.deliveryMethods.length + riskResult.previousPregnancyHistory.complications.length > 0 || riskResult.previousPregnancyHistory.unknown) ? <p className="text-sm text-gray-700">{[...riskResult.previousPregnancyHistory.outcomes, ...riskResult.previousPregnancyHistory.deliveryMethods, ...riskResult.previousPregnancyHistory.complications].join(', ') || 'Unknown previous pregnancy history'}</p> : <p className="text-sm text-gray-500">No previous pregnancy history recorded.</p>}
                       </div>
 
+                      <Button variant="outline" className="w-full" onClick={() => downloadAssessmentReport([riskResult], user?.name || 'Patient')}>
+                        <Download className="w-4 h-4 mr-2" /> Download this assessment as PDF
+                      </Button>
+
                       <div className="rounded-lg border border-slate-200 p-4">
                         <p className="text-sm font-semibold mb-3">Factors Contributing to This Assessment</p>
                         <p className="text-xs font-semibold uppercase text-gray-500">Current vital signs</p>
@@ -741,7 +748,7 @@ export default function RiskAssessment() {
                         <TrendingUp className="w-5 h-5 text-mamacare-coral" />
                         <p className="font-semibold">Risk Score Trend</p>
                       </div>
-                      <p className="text-sm text-gray-500">{pastAssessments.length} records</p>
+                      <div className="flex items-center gap-3"><p className="text-sm text-gray-500">{pastAssessments.length} records</p>{pastAssessments.length > 0 && <Button variant="outline" size="sm" onClick={() => downloadAssessmentReport(pastAssessments, user?.name || 'Patient')}><Download className="w-4 h-4 mr-2" />PDF history</Button>}</div>
                     </div>
 
                     {assessmentTrendData.length > 0 ? (
@@ -788,6 +795,7 @@ export default function RiskAssessment() {
                           }`}>
                             {getRiskLevelText(assessment.result.level)}
                           </span>
+                          <Button variant="ghost" size="sm" aria-label="Download assessment PDF" onClick={() => downloadAssessmentReport([assessment], user?.name || 'Patient')}><Download className="w-4 h-4" /></Button>
                         </div>
                       </div>
                     ))}
