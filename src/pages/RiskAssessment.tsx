@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Activity, AlertCircle, CheckCircle2, Info, ArrowRight,
-  Heart, Thermometer, Droplets, Clock, User, FileText,
+  Heart, Thermometer, Droplets, Clock, User, FileText, X,
   TrendingUp, Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,10 +25,33 @@ interface RiskResultData {
   vitalContributions?: Array<{ feature: string; label: string; contribution: number; reason: string; value: number; unit: string }>;
   symptomContributions?: Array<{ symptom: string; contribution: number; reason: string }>;
   correlations?: Array<{ symptom: string; vital: string; vitalLabel: string; vitalValue: number; vitalUnit: string; relationship: string; strength: string }>;
+  historyCorrelations?: Array<{ history: string; historyLabel: string; vital: string; vitalLabel: string; vitalValue: number; vitalUnit: string; relationship: string; strength: string }>;
   previousRisk?: number | null;
   deltaRisk?: number | null;
   alertStatus?: string;
   riskCategories?: Array<{ name: string; status: string; evidence: string[]; note?: string }>;
+  historyContributions?: Array<{ feature: string; label: string; contribution: number; reason: string }>;
+  protectiveFactors?: string[];
+  previousPregnancyHistory?: PreviousPregnancyHistory;
+  currentSymptoms?: string[];
+  modelVersion?: string;
+  expandedFeatureSetUsed?: boolean;
+  shapAvailable?: boolean;
+  riskProbabilities?: { low: number; medium: number; high: number };
+  urgentSymptoms?: string[];
+}
+
+interface PreviousPregnancyHistory {
+  gravida: number | null;
+  para: number | null;
+  liveBirths: number | null;
+  pregnancyLosses: number | null;
+  previousCesareanSections: number | null;
+  previousMultiplePregnancy: boolean | null;
+  outcomes: string[];
+  deliveryMethods: string[];
+  complications: string[];
+  unknown: boolean;
 }
 
 interface RiskResult {
@@ -47,6 +70,7 @@ interface RiskResult {
     bodyTemp: number;
     heartRate: number;
   };
+  previousPregnancyHistory?: PreviousPregnancyHistory;
 }
 
 const symptomsList = [
@@ -63,13 +87,28 @@ const symptomsList = [
   'None'
 ];
 
+const historyGroups = [
+  { key: 'outcomes', label: 'Previous Pregnancy Outcome', options: ['No previous pregnancy', 'Previous pregnancy with no reported complication', 'Live birth', 'Stillbirth', 'Neonatal death', 'Miscarriage', 'Recurrent miscarriage', 'Termination of pregnancy', 'Termination for medical or fetal reason', 'Ectopic pregnancy', 'Molar pregnancy', 'Pregnancy loss, outcome unspecified'] },
+  { key: 'deliveryMethods', label: 'Previous Delivery Method', options: ['No previous delivery', 'Spontaneous vaginal delivery', 'Assisted vaginal delivery', 'Caesarean section', 'Emergency Caesarean section', 'Elective Caesarean section', 'Instrumental delivery', 'Delivery method unknown'] },
+  { key: 'complications', label: 'Previous Pregnancy Complications', options: ['pre-eclampsia', 'gestational hypertension', 'eclampsia', 'gestational diabetes', 'postpartum haemorrhage', 'antepartum haemorrhage', 'preterm birth', 'premature rupture of membranes', 'fetal growth restriction', 'small-for-gestational-age baby', 'placental abruption', 'placenta previa', 'anaemia in pregnancy', 'maternal infection', 'obstructed labour', 'prolonged labour', 'birth trauma', 'ICU admission during pregnancy or childbirth', 'maternal near-miss event', 'blood transfusion', 'uterine surgery', 'pregnancy complication, other', 'No known previous complication', 'Unknown previous pregnancy history'] },
+  { key: 'history', label: 'Previous Pregnancy History', options: ['Gravida', 'Para', 'Number of previous live births', 'Number of previous pregnancy losses', 'Number of previous Caesarean sections', 'Previous multiple pregnancy', 'Previous pregnancy with multiple births', 'Previous pregnancy outcome unknown'] },
+] as const;
+
+const initialHistory: PreviousPregnancyHistory = { gravida: null, para: null, liveBirths: null, pregnancyLosses: null, previousCesareanSections: null, previousMultiplePregnancy: null, outcomes: [], deliveryMethods: [], complications: [], unknown: false };
+
 export default function RiskAssessment() {
   const { t } = useLanguage();
   const { isAuthenticated, getToken, user } = useAuth();
+  const canEnterPreviousHistory = ['clinician', 'data_entry', 'admin', 'superadmin'].includes(user?.role);
+  const patientHistoryGroups = historyGroups.map(group => group.key === 'history'
+    ? { ...group, options: group.options.filter(option => !['Gravida', 'Para', 'Number of previous live births', 'Number of previous pregnancy losses', 'Number of previous Caesarean sections'].includes(option)) }
+    : group).filter(group => group.key === 'history');
   const [isAssessing, setIsAssessing] = useState(false);
   const [riskResult, setRiskResult] = useState<RiskResult | null>(null);
   const [pastAssessments, setPastAssessments] = useState<RiskResult[]>([]);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [previousPregnancyHistory, setPreviousPregnancyHistory] = useState<PreviousPregnancyHistory>(initialHistory);
+  const [selectedHistoryFields, setSelectedHistoryFields] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [patients, setPatients] = useState<Array<{ id: string; patientId: string; name: string }>>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -137,6 +176,52 @@ export default function RiskAssessment() {
     }
   };
 
+  const updateHistoryCount = (field: keyof Pick<PreviousPregnancyHistory, 'gravida' | 'para' | 'liveBirths' | 'pregnancyLosses' | 'previousCesareanSections'>, value: string) => {
+    setPreviousPregnancyHistory(prev => ({ ...prev, [field]: value === '' ? null : Number(value) }));
+  };
+
+  const getHistoryValues = (groupKey: string) => groupKey === 'history' ? selectedHistoryFields : previousPregnancyHistory[groupKey as 'outcomes' | 'deliveryMethods' | 'complications'];
+
+  const addHistoryValue = (groupKey: string, option: string) => {
+    if (!option) return;
+    if (option === 'None') {
+      if (groupKey === 'history') setSelectedHistoryFields([]);
+      else setPreviousPregnancyHistory(prev => ({ ...prev, [groupKey]: [] }));
+      return;
+    }
+    if (groupKey === 'history') {
+      setSelectedHistoryFields(prev => prev.includes(option) ? prev : [...prev, option]);
+      if (option === 'Previous multiple pregnancy' || option === 'Previous pregnancy with multiple births') {
+        setPreviousPregnancyHistory(prev => ({ ...prev, previousMultiplePregnancy: true }));
+      } else if (option === 'Previous pregnancy outcome unknown') {
+        setPreviousPregnancyHistory(prev => ({ ...prev, unknown: true, outcomes: ['Previous pregnancy outcome unknown'] }));
+      }
+      return;
+    }
+    if (groupKey === 'outcomes' && option === 'No previous pregnancy') {
+      setPreviousPregnancyHistory({ ...initialHistory, outcomes: [option] });
+      return;
+    }
+    if (option === 'Unknown previous pregnancy history' || option === 'Previous pregnancy outcome unknown') {
+      setPreviousPregnancyHistory({ ...initialHistory, unknown: true, complications: option === 'Unknown previous pregnancy history' ? [option] : [], outcomes: option === 'Previous pregnancy outcome unknown' ? [option] : [] });
+      return;
+    }
+    setPreviousPregnancyHistory(prev => ({ ...prev, unknown: false, [groupKey]: prev[groupKey as 'outcomes' | 'deliveryMethods' | 'complications'].includes(option) ? prev[groupKey as 'outcomes' | 'deliveryMethods' | 'complications'] : [...prev[groupKey as 'outcomes' | 'deliveryMethods' | 'complications'], option] }));
+  };
+
+  const removeHistoryValue = (groupKey: string, option: string) => {
+    if (groupKey === 'history') {
+      setSelectedHistoryFields(prev => prev.filter(value => value !== option));
+      if (option === 'Previous multiple pregnancy' || option === 'Previous pregnancy with multiple births') {
+        setPreviousPregnancyHistory(prev => ({ ...prev, previousMultiplePregnancy: null }));
+      } else if (option === 'Previous pregnancy outcome unknown') {
+        setPreviousPregnancyHistory(prev => ({ ...prev, unknown: false, outcomes: prev.outcomes.filter(value => value !== option) }));
+      }
+    } else {
+      setPreviousPregnancyHistory(prev => ({ ...prev, [groupKey]: prev[groupKey as 'outcomes' | 'deliveryMethods' | 'complications'].filter(value => value !== option) }));
+    }
+  };
+
   const assessRisk = async () => {
     if (!isAuthenticated) {
       toast.error('Please login to use the risk assessment');
@@ -157,6 +242,10 @@ export default function RiskAssessment() {
     const temperature = parseFloat(formData.bodyTemp);
     if (temperature > 43 || temperature < 34) {
       toast.error('Invalid data: Out of physiological range');
+      return;
+    }
+    if (previousPregnancyHistory.gravida !== null && previousPregnancyHistory.para !== null && previousPregnancyHistory.para > previousPregnancyHistory.gravida) {
+      toast.error('Para cannot exceed Gravida');
       return;
     }
 
@@ -182,6 +271,7 @@ export default function RiskAssessment() {
           patientId: selectedPatientId || undefined,
           symptoms: selectedSymptoms.filter(s => s !== 'None'),
           notes: additionalNotes,
+          previousPregnancyHistory,
         }),
       });
 
@@ -279,7 +369,7 @@ export default function RiskAssessment() {
                 {user?.role === 'data_entry' && (
                   <div className="mb-6 space-y-2">
                     <Label className="text-white">Patient</Label>
-                    <select value={selectedPatientId} onChange={(event) => setSelectedPatientId(event.target.value)} className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-white" required>
+                    <select value={selectedPatientId} onChange={(event) => setSelectedPatientId(event.target.value)} className="w-full rounded-md border border-white/20 bg-white px-3 py-2 text-gray-900" required>
                       <option value="" className="text-black">Select a registered patient</option>
                       {patients.map(patient => <option key={patient.id} value={patient.id} className="text-black">{patient.patientId} - {patient.name}</option>)}
                     </select>
@@ -295,7 +385,7 @@ export default function RiskAssessment() {
                       placeholder="e.g., 28"
                       value={formData.age}
                       onChange={(e) => handleInputChange('age', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -307,7 +397,7 @@ export default function RiskAssessment() {
                       placeholder="e.g., 4"
                       value={formData.pregnancyWeek}
                       onChange={(e) => handleInputChange('pregnancyWeek', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -319,7 +409,7 @@ export default function RiskAssessment() {
                       placeholder="e.g., 120"
                       value={formData.systolicBP}
                       onChange={(e) => handleInputChange('systolicBP', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -331,7 +421,7 @@ export default function RiskAssessment() {
                       placeholder="e.g., 80"
                       value={formData.diastolicBP}
                       onChange={(e) => handleInputChange('diastolicBP', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -344,9 +434,9 @@ export default function RiskAssessment() {
                       placeholder="e.g., 7.0"
                       value={formData.bloodSugar}
                       onChange={(e) => handleInputChange('bloodSugar', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
-                    <select value={formData.bloodSugarUnit} onChange={(e) => handleInputChange('bloodSugarUnit', e.target.value)} className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-white">
+                    <select value={formData.bloodSugarUnit} onChange={(e) => handleInputChange('bloodSugarUnit', e.target.value)} className="w-full rounded-md border border-white/20 bg-white px-3 py-2 text-gray-900">
                       <option value="mmol/L" className="text-black">mmol/L</option>
                       <option value="mg/dL" className="text-black">mg/dL</option>
                     </select>
@@ -361,7 +451,7 @@ export default function RiskAssessment() {
                       placeholder="e.g., 37.0"
                       value={formData.bodyTemp}
                       onChange={(e) => handleInputChange('bodyTemp', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -373,9 +463,38 @@ export default function RiskAssessment() {
                       placeholder="e.g., 75"
                       value={formData.heartRate}
                       onChange={(e) => handleInputChange('heartRate', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
+                </div>
+
+                {/* Previous Pregnancy History */}
+                <div className="mt-8 border-t border-white/10 pt-6">
+                  <Label className="text-white text-lg">Previous Pregnancy Outcomes and Complications</Label>
+                  <p className="text-white/60 text-sm mt-2 mb-4">Previous pregnancy outcomes and complications may help identify patterns of maternal risk. Select all that apply. This information supports risk assessment and does not replace professional medical evaluation.</p>
+                  <div className="space-y-4">
+                    {(canEnterPreviousHistory ? historyGroups : patientHistoryGroups).map(group => {
+                      const selectedValues = getHistoryValues(group.key);
+                      return <div key={group.key} className="space-y-2">
+                        <Label className="text-white/90">{group.label}</Label>
+                        <select value="" onChange={(event) => addHistoryValue(group.key, event.target.value)} className="w-full rounded-md border border-white/20 bg-white px-3 py-2 text-gray-900">
+                          <option value="" className="text-black">Select an option...</option>
+                          <option value="None" className="text-black">None</option>
+                          {group.options.map(option => <option key={option} value={option} className="text-black">{option}</option>)}
+                        </select>
+                        {selectedValues.length > 0 && <div className="flex flex-wrap gap-2">{selectedValues.map(option => <span key={option} className="inline-flex items-center gap-1 rounded-full bg-mamacare-coral px-3 py-1 text-xs text-white">{option}<button type="button" aria-label={`Remove ${option}`} onClick={() => removeHistoryValue(group.key, option)}><X className="h-3 w-3" /></button></span>)}</div>}
+                      </div>;
+                    })}
+                  </div>
+                  {canEnterPreviousHistory && <div className="mt-6 border-t border-white/10 pt-4">
+                    <Label className="text-white/90">Previous Pregnancy History Details</Label>
+                    <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                      {([['gravida', 'Gravida'], ['para', 'Para'], ['liveBirths', 'Number of previous live births'], ['pregnancyLosses', 'Number of previous pregnancy losses'], ['previousCesareanSections', 'Number of previous Caesarean sections']] as const).map(([field, label]) => (
+                        <div key={field} className="space-y-1"><Label className="text-white/80 text-xs">{label}</Label><Input type="number" min="0" value={previousPregnancyHistory[field] ?? ''} onChange={(event) => updateHistoryCount(field, event.target.value)} className="bg-white border-white/20 text-gray-900 placeholder:text-gray-500" /></div>
+                      ))}
+                    </div>
+                    {selectedHistoryFields.some(value => value === 'Previous multiple pregnancy' || value === 'Previous pregnancy with multiple births') && <label className="flex items-center gap-2 text-sm text-white/80 mt-4"><input type="checkbox" checked={previousPregnancyHistory.previousMultiplePregnancy === true} onChange={(event) => setPreviousPregnancyHistory(prev => ({ ...prev, previousMultiplePregnancy: event.target.checked }))} /> Previous multiple pregnancy</label>}
+                  </div>}
                 </div>
 
                 {/* Current Symptoms */}
@@ -388,6 +507,7 @@ export default function RiskAssessment() {
                     {symptomsList.map((symptom) => (
                       <button
                         key={symptom}
+                        type="button"
                         onClick={() => toggleSymptom(symptom)}
                         className={`px-3 py-2 rounded-full text-sm font-medium transition-all ${
                           selectedSymptoms.includes(symptom)
@@ -410,7 +530,7 @@ export default function RiskAssessment() {
                     value={additionalNotes}
                     onChange={(e) => setAdditionalNotes(e.target.value)}
                     placeholder="Add any additional information about your condition..."
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/50 resize-none"
+                    className="w-full px-4 py-3 bg-white border border-white/20 rounded-lg text-gray-900 placeholder:text-gray-500 resize-none"
                     rows={3}
                   />
                 </div>
@@ -440,6 +560,7 @@ export default function RiskAssessment() {
               {riskResult ? (
                 <Card className={`border-2 ${getRiskColor(riskResult.result.level)}`}>
                   <CardContent className="p-8">
+                    {(riskResult.result.urgentSymptoms || []).length > 0 && <div className="mb-6 rounded-lg border-2 border-red-300 bg-red-100 p-4 text-red-900"><p className="font-bold">Seek immediate professional medical care</p><p className="text-sm mt-1">Urgent symptom(s) selected: {riskResult.result.urgentSymptoms?.join(', ')}. This warning applies regardless of the screening score.</p></div>}
                     <div className="flex items-center gap-4 mb-6">
                       {getRiskIcon(riskResult.result.level)}
                       <div>
@@ -469,6 +590,22 @@ export default function RiskAssessment() {
                         </div>
                       </div>
 
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-sm font-semibold mb-2">Previous Pregnancy History Considered</p>
+                        {riskResult.previousPregnancyHistory && (riskResult.previousPregnancyHistory.outcomes.length + riskResult.previousPregnancyHistory.deliveryMethods.length + riskResult.previousPregnancyHistory.complications.length > 0 || riskResult.previousPregnancyHistory.unknown) ? <p className="text-sm text-gray-700">{[...riskResult.previousPregnancyHistory.outcomes, ...riskResult.previousPregnancyHistory.deliveryMethods, ...riskResult.previousPregnancyHistory.complications].join(', ') || 'Unknown previous pregnancy history'}</p> : <p className="text-sm text-gray-500">No previous pregnancy history recorded.</p>}
+                      </div>
+
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <p className="text-sm font-semibold mb-3">Factors Contributing to This Assessment</p>
+                        <p className="text-xs font-semibold uppercase text-gray-500">Current vital signs</p>
+                        {(riskResult.result.vitalContributions || []).filter(item => item.contribution > 0).map(item => <p key={item.feature} className="text-sm mt-1">{item.label}: +{item.contribution}</p>)}
+                        <p className="text-xs font-semibold uppercase text-gray-500 mt-3">Previous pregnancy history</p>
+                        {(riskResult.result.historyContributions || []).map(item => <p key={item.feature} className="text-sm mt-1">{item.label}: +{item.contribution}</p>)}
+                        <p className="text-xs font-semibold uppercase text-gray-500 mt-3">Current symptoms</p>
+                        {(riskResult.result.symptomContributions || []).filter(item => item.contribution > 0).map(item => <p key={item.symptom} className="text-sm mt-1">{item.symptom}: +{item.contribution}</p>)}
+                        <p className="text-xs text-gray-500 mt-3">These are screening contributions from the active rule engine, not medical certainty or causal proof.</p>
+                      </div>
+
                       <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
                         <p className="text-sm font-semibold mb-2">Risk categories indicated by this assessment</p>
                         {(riskResult.result.riskCategories || []).length > 0 ? riskResult.result.riskCategories?.map((category) => (
@@ -493,6 +630,13 @@ export default function RiskAssessment() {
                             <p key={`${item.symptom}-${item.vital}-${index}`} className="text-sm mb-1">{item.symptom} + {item.vitalLabel} ({item.vitalValue} {item.vitalUnit}): {item.relationship}</p>
                           )) : <p className="text-sm text-gray-500">No symptom-vital correlation recorded.</p>}
                         </div>
+                        {canEnterPreviousHistory && <div className="rounded-lg bg-white/50 p-4">
+                          <p className="text-sm font-semibold mb-2">Previous history, vitals and symptoms</p>
+                          {(riskResult.result.historyCorrelations || []).length > 0 ? riskResult.result.historyCorrelations?.map((item, index) => (
+                            <p key={`${item.history}-${item.vital}-${index}`} className="text-sm mb-1">{item.historyLabel} + {item.vitalLabel} ({item.vitalValue} {item.vitalUnit}): {item.relationship}</p>
+                          )) : <p className="text-sm text-gray-500">No previous-history and vital correlation recorded.</p>}
+                          {(riskResult.result.correlations || []).length > 0 && <p className="text-xs text-gray-500 mt-2">Current symptom correlations are shown alongside this history review.</p>}
+                        </div>}
                       </div>
                       <div className="rounded-lg border border-slate-200 p-4">
                         <p className="text-sm font-semibold">Clinical monitoring</p>
